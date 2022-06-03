@@ -1,4 +1,4 @@
-# ecoledger_node x86
+# ecoledger_node x86/armv7l
 This docker image built on Python3.6 image.
 
 The overview of contents of project are:
