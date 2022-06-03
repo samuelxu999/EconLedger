@@ -2,13 +2,14 @@
 
 # parse parameters
 command_line=$1
+config_folder="../config"
 
 if [ "$command_line" == "" ]; then
 	command_line="hostname"
 fi
 
 # for iterate json to extract peering information
-PEER_NODES='static-nodes.json'
+PEER_NODES="$config_folder/static-nodes.json"
 for k in $(jq  'keys | .[]' $PEER_NODES); do
 	address=$(jq -r ".[$k].address" $PEER_NODES);
 	ip=$(jq -r ".[$k].ip" $PEER_NODES);

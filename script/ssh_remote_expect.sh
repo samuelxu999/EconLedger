@@ -16,14 +16,14 @@ if { $argv_len < 3 } {
 	set target_address [lindex $argv 1];
 	set command_lines [lindex $argv 2];
 
-	# Get password from local password.sec
-	set f [open "password.sec"];
+	# Get password from local host_password.sec
+	set f [open "host_password.sec"];
 	set password [ read $f ];
 	close $f;
 
 	# Execute ssh command given parameter
 	spawn ssh $target_name@$target_address $command_lines;
-	expect "assword:";
+	expect "password:";
 	send "$password";
 	interact;
 }
