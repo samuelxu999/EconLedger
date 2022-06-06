@@ -100,8 +100,9 @@ def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUN
 
 	# S1: send test transactions
 	start_time=time.time()
-	# send_transaction(target_address, samples_head, samples_size, True)
-	head_pos = ENFchain_client.launch_ENF(samples_head, samples_size)
+	ENFchain_client.start_tx_submit(target_address, True)
+	head_pos = 0
+	# head_pos = ENFchain_client.launch_ENF(samples_head, samples_size)
 	exec_time=time.time()-start_time
 	ls_time_exec.append(format(exec_time*1000, '.3f'))
 
@@ -500,9 +501,11 @@ if __name__ == "__main__":
 
 	elif(test_func == 2):
 		if(op_status == 1):
-			ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
+			# ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
+			ENFchain_client.start_tx_submit(target_address)
 		elif(op_status == 10):
-			ENFchain_client.launch_ENF(samples_head, samples_size)
+			# ENFchain_client.launch_ENF(samples_head, samples_size)
+			ENFchain_client.start_tx_submit(target_address, True)
 		elif(op_status == 2):
 			ENFchain_client.start_mining(target_address, True)
 		elif(op_status == 3):

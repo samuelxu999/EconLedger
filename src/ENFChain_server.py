@@ -28,6 +28,7 @@ from consensus.validator import Validator
 from consensus.consensus import *
 from utils.service_api import SrvAPI
 from randomness.randshare import RandShare, RandOP
+from utils.ENFchain_RPC import swarm_utils
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,41 @@ def commit_transaction():
 		
 	return jsonify({'request_transaction': respose_json}), 201
 
+@app.route('/test/transaction/submit', methods=['GET'])
+def submit_transaction():
+	start_time=time.time()
+
+	## ------------ build enf_tx -------------------
+	sender = myblockchain.wallet.accounts[0]
+	sender_address = sender['address']
+	sender_private_key = sender['private_key']
+	## set recipient_address as default value: 0
+	recipient_address = '0'
+	time_stamp = time.time()
+
+	## value comes from hash value to indicate address that ENF samples are saved on swarm network.
+	json_value={}
+	json_value['sender_address'] = sender_address
+	json_value['swarm_hash'] = swarm_utils.recordENF(sender_address)
+	## convert json_value to string to ensure consistency in tx verification.
+	str_value = TypesUtil.json_to_string(json_value)
+
+	mytransaction = Transaction(sender_address, sender_private_key, recipient_address, time_stamp, str_value)
+
+	## sign transaction
+	sign_data = mytransaction.sign('samuelxu999')
+
+	## --------------------- send transaction --------------------------------------
+	transaction_json = mytransaction.to_json()
+	transaction_json['signature']=TypesUtil.string_to_hex(sign_data)
+
+	## broadcast tx to peers
+	SrvAPI.broadcast_POST(myblockchain.peer_nodes.get_nodelist(), transaction_json, '/test/transaction/verify')
+	exec_time=time.time()-start_time
+	FileUtil.save_testlog('test_results', 'exec_submit_tx.log', format(exec_time*1000, '.3f'))
+	
+	return jsonify({'submit_enf_tx': 'Succeed!'}), 201
+
 #GET req
 @app.route('/test/transaction/verify', methods=['POST'])
 def verify_transaction():
@@ -176,9 +212,9 @@ def verify_transaction():
 	exec_time=time.time()-start_time
 	FileUtil.save_testlog('test_results', 'exec_verify_tx.log', format(exec_time*1000, '.3f'))
 
-	if(verify_data==True):
-		## 5) forward unseen tx to peer nodes.
-		SrvAPI.broadcast_POST(myblockchain.peer_nodes.get_nodelist(), transaction_json, '/test/transaction/verify')
+	# if(verify_data==True):
+	# 	## 5) forward unseen tx to peer nodes.
+	# 	SrvAPI.broadcast_POST(myblockchain.peer_nodes.get_nodelist(), transaction_json, '/test/transaction/verify')
 	
 	return jsonify({'verify_transaction': verify_data}), 201
 

@@ -34,7 +34,7 @@ from utils.db_adapter import DataManager
 from consensus.consensus import *
 from utils.configuration import *
 from utils.service_api import SrvAPI
-from utils.ENFchain_RPC import ENFchain_RPC
+from utils.ENFchain_RPC import ENFchain_RPC, swarm_utils
 
 logger = logging.getLogger(__name__)
 
@@ -339,6 +339,11 @@ class Validator(object):
 				# self.statusConsensus = 0
 				step_delay = self.phase_delay
 				logger.info("Collecting ENF samples proof, timeout is: {}".format(step_delay))
+				# 1) build enf transaction
+				json_enf_tx = self.build_enf_tx()
+
+				# 2) broadcast json_enf_tx to peer nodes
+				SrvAPI.broadcast_POST(self.peer_nodes.get_nodelist(), json_enf_tx, '/test/transaction/verify')
 				time.sleep(step_delay)
 
 				# ------------S1: execute proof-of-ENF to mine new block--------------------
@@ -589,7 +594,40 @@ class Validator(object):
 					return True
 		else:
 			return False
- 
+
+	def build_enf_tx(self):
+		"""
+		build a enf tx given current ENF samples
+		Args:
+			@ json_enf_tx: return enf transaction
+		"""
+
+		## ------------ build enf_tx -------------------
+		sender = self.wallet.accounts[0]
+		sender_address = sender['address']
+		sender_private_key = sender['private_key']
+		## set recipient_address as default value: 0
+		recipient_address = '0'
+		time_stamp = time.time()
+
+		## value comes from hash value to indicate address that ENF samples are saved on swarm network.
+		json_value={}
+		json_value['sender_address'] = sender_address
+		json_value['swarm_hash'] = swarm_utils.recordENF(sender_address)
+		## convert json_value to string to ensure consistency in tx verification.
+		str_value = TypesUtil.json_to_string(json_value)
+
+		enf_tx = Transaction(sender_address, sender_private_key, recipient_address, time_stamp, str_value)
+
+		## sign transaction
+		sign_data = enf_tx.sign('samuelxu999')
+
+		## --------------------- send transaction --------------------------------------
+		json_enf_tx = enf_tx.to_json()
+		json_enf_tx['signature']=TypesUtil.string_to_hex(sign_data)
+
+		return json_enf_tx
+
 	def mine_block(self):
 		"""
 		Mining task to calculate a valid proof and propose new block

@@ -29,37 +29,70 @@ from randomness.randshare import RandShare, RandOP
 
 logger = logging.getLogger(__name__)
 
-## Load ENF samples database for test
-ENF_file = "./data/one_day_enf.csv"
-ENF_data = FileUtil.csv_read(ENF_file)
 
-## ---------------------- Internal function and class -----------------------------
-def getSwarmhash(samples_id, samples_head, samples_size, is_random=False):
-	if(is_random==True):
+## --------------------------------- swarm_utils class ------------------------------------------
+class swarm_utils(object):
+	## ----------- class variables ----------------
+	## Load ENF samples database for test
+	ENF_data = FileUtil.csv_read("./data/one_day_enf.csv")
+
+	##  ----------- class functions ---------------
+	@staticmethod
+	def getSwarmhash(samples_id, samples_head, samples_size, is_random=False):
+		if(is_random==True):
+			head_pos = random.randint(0,7200) 
+		else:
+			head_pos = samples_head 
+
+		ls_ENF = TypesUtil.np2list(swarm_utils.ENF_data[head_pos:(head_pos+samples_size), 1]) 
+
+		## ******************** upload ENF samples **********************
+		## build json ENF data for transaction
+		tx_json = {}
+
+		json_ENF={}
+		json_ENF['id']=samples_id
+		json_ENF['enf']=ls_ENF
+		tx_data = TypesUtil.json_to_string(json_ENF)  
+
+		## save ENF data in transaction
+		tx_json['data']=tx_data
+		# print(tx_json)
+
+		## random choose a swarm server
+		target_address = Swarm_RPC.get_service_address()
+		post_ret = Swarm_RPC.upload_data(target_address, tx_json)	
+
+		return post_ret['data']
+
+	@staticmethod
+	def recordENF(samples_id):
+		'''
+		Record ENF sample to swarm network and retrun swarm hash (reference). 
+		'''
+		## use random ENF data for test
 		head_pos = random.randint(0,7200) 
-	else:
-		head_pos = samples_head 
+		samples_size = 60
+		ls_ENF = TypesUtil.np2list(swarm_utils.ENF_data[head_pos:(head_pos+samples_size), 1]) 
 
-	ls_ENF = TypesUtil.np2list(ENF_data[head_pos:(head_pos+samples_size), 1]) 
+		## ******************** upload ENF samples **********************
+		## build json ENF data for transaction
+		tx_json = {}
 
-	## ******************** upload ENF samples **********************
-	## build json ENF data for transaction
-	tx_json = {}
+		json_ENF={}
+		json_ENF['id']=samples_id
+		json_ENF['enf']=ls_ENF
+		tx_data = TypesUtil.json_to_string(json_ENF)  
 
-	json_ENF={}
-	json_ENF['id']=samples_id
-	json_ENF['enf']=ls_ENF
-	tx_data = TypesUtil.json_to_string(json_ENF)  
+		## save ENF data in transaction
+		tx_json['data']=tx_data
+		# print(tx_json)
 
-	## save ENF data in transaction
-	tx_json['data']=tx_data
-	# print(tx_json)
+		## random choose a swarm server
+		target_address = Swarm_RPC.get_service_address()
+		post_ret = Swarm_RPC.upload_data(target_address, tx_json)	
 
-	## random choose a swarm server
-	target_address = Swarm_RPC.get_service_address()
-	post_ret = Swarm_RPC.upload_data(target_address, tx_json)	
-
-	return post_ret['data']
+		return post_ret['data']
 
 class TxsThread(threading.Thread):
 	'''
@@ -86,7 +119,7 @@ class TxsThread(threading.Thread):
 		## value comes from hash value to indicate address that ENF samples are saved on swarm network.
 		json_value={}
 		json_value['sender_address'] = sender_address
-		json_value['swarm_hash'] = getSwarmhash(sender_address, head_pos, samples_size)
+		json_value['swarm_hash'] = swarm_utils.getSwarmhash(sender_address, head_pos, samples_size)
 		## convert json_value to string to ensure consistency in tx verification.
 		str_value = TypesUtil.json_to_string(json_value)
 
@@ -202,7 +235,7 @@ class ENFchain_RPC(object):
 		## value comes from hash value to indicate address that ENF samples are saved on swarm network.
 		json_value={}
 		json_value['sender_address'] = sender_address
-		json_value['swarm_hash'] = getSwarmhash(sender_address, samples_head, samples_size)
+		json_value['swarm_hash'] = swarm_utils.getSwarmhash(sender_address, samples_head, samples_size)
 		## convert json_value to string to ensure consistency in tx verification.
 		str_value = TypesUtil.json_to_string(json_value)
 
@@ -210,12 +243,6 @@ class ENFchain_RPC(object):
 
 		## sign transaction
 		sign_data = mytransaction.sign('samuelxu999')
-
-		## verify transaction
-		dict_transaction = Transaction.get_dict(mytransaction.sender_address, 
-												mytransaction.recipient_address,
-												mytransaction.time_stamp,
-												mytransaction.value)
 
 		## --------------------- send transaction --------------------------------------
 		transaction_json = mytransaction.to_json()
@@ -238,6 +265,15 @@ class ENFchain_RPC(object):
 	def query_transaction(self, target_address, tx_json):
 		json_response=SrvAPI.GET('http://'+target_address+'/test/transaction/query', tx_json)
 		return json_response
+
+	def start_tx_submit(self, target_address, isBroadcast=False):
+		if(not isBroadcast):
+			json_response=SrvAPI.GET('http://'+target_address+'/test/transaction/submit')
+		else:
+			SrvAPI.broadcast_GET(self.peer_nodes.get_nodelist(), '/test/transaction/submit', True)
+			json_response = {'start tx_submit': 'broadcast'}
+
+		logger.info(json_response)
 
 	def start_mining(self, target_address, isBroadcast=False):
 		if(not isBroadcast):
