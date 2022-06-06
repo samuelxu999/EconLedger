@@ -7,170 +7,128 @@
 	},
 	"localtest2": 
 	{
-		"address": "b656f00540643773b7d1d6cc1dd3e7591592cdb7",
+		"address": "85aa7c1e283b5d86c786b7c01f523bfc031cb869",
 		"ip": "0.0.0.0:8182",
 		"user": "samuel"
 	},
 	"localtest3": 
 	{
-		"address": "08e4b570c8970086f692ec13ee9d10930e8c6e3c",
+		"address": "8261c71e300105ae22ff7818daedafd7af4b67c7",
 		"ip": "0.0.0.0:8183",
 		"user": "samuel"
 	},
 	"localtest4": 
 	{
-		"address": "1ad48ca78653f3f4b16b0622432db7d995613c42",
+		"address": "a4977bdaf7377103fd824dfb7073679c2e1a0bb3",
+		"ip": "0.0.0.0:8184",
+		"user": "samuel"
+	},
+	"localtest5": 
+	{
+		"address": "d09beebc5515a40a6008b8468d5ea70c1e442a14",
 		"ip": "0.0.0.0:8184",
 		"user": "samuel"
 	},
 	"Desktop_dell7071": 
 	{
-		"address": "0a062a8c969eb7a182f95f4023fc2ce0800ef0c7",
+		"address": "ebf598751786b355971777f2e9fd7d4ddb9b8abc",
 		"ip": "128.226.88.210:8180",
 		"user": "samuel"
 	},
-	"R1_pi_plus_1": 
-	{
-		"address": "cfc272fe5a06ce492453f8b0f843eb6a97080062",
-		"ip": "128.226.79.137:8180",
-		"user": "pi"
-	},
-	"R1_pi_plus_2": 
-	{
-		"address": "75db76633e98c4daea48ce4e77da8f9f92d4fb36",
-		"ip": "128.226.79.251:8180",
-		"user": "pi"
-	},
-	"R1_pi_plus_3": 
-	{
-		"address": "d4472d55fa867f920ad02bdb9619b4cd46aad778",
-		"ip": "128.226.78.50:8180",
-		"user": "pi"
-	},
-	"R1_pi_plus_4": 
-	{
-		"address": "102931fc01a1e510b75b055dfa4273d617930709",
-		"ip": "128.226.76.62:8180",
-		"user": "pi"
-	},
-	"R2_pi_top": 
-	{
-		"address": "5a04fa54045e2ee32a6869859d60df816fb30b5d",
-		"ip": "128.226.76.114:8180",
-		"user": "pi"
-	},
-	"R2_pi_bottom": 
-	{
-		"address": "51e49d68a6b2600c0f8bddc151194a2064c8a553",
-		"ip": "128.226.78.148:8180",
-		"user": "pi"
-	},
-	"R2_pi4_top": 
-	{
-		"address": "7ed71fff4fd025d48d84968278595e099bde5a15",
-		"ip": "128.226.79.17:8180",
-		"user": "pi"
-	},
-	"R2_pi4_bottom": 
-	{
-		"address": "d17d5060ddeb2297909f5e89a0e0b1a07b4369fa",
-		"ip": "128.226.76.173:8180",
-		"user": "pi"
-	},
-	"Desk_pi_node_1": 
-	{
-		"address": "5703e83625b6557e3891e7b42e5cb4f2f552f7a0",
-		"ip": "128.226.79.68:8180",
-		"user": "pi"
-	},
-	"Desk_pi_node_2": 
-	{
-		"address": "732e52596a49244624c1895b2ae663b9132c74d3",
-		"ip": "128.226.78.244:8180",
-		"user": "pi"
-	},
-	"Desk_pi_plus_Sam1": 
-	{
-		"address": "2778b6d54e7814f2cd9e2d39872a0a201e1eee2c",
-		"ip": "128.226.79.249:8180",
-		"user": "pi"
-	},
-	"Desk_pi_plus_Sam2": 
-	{
-		"address": "efd961b8006691da2d912239a9d730bf04a2a68f",
-		"ip": "128.226.88.239:8180",
-		"user": "pi"
-	},
 	"R1_pi4_1": 
 	{
-		"address": "4ce50e5efaeb6c230e4dd3718cf331cb0742e6c9",
+		"address": "null",
 		"ip": "128.226.77.157:8180",
 		"user": "pi"
 	},
 	"R1_pi4_2": 
 	{
-		"address": "3db0833c9ce1e05fe35e9c247eb6ca7149649617",
+		"address": "null",
 		"ip": "128.226.78.128:8180",
 		"user": "pi"
 	},
 	"R1_pi4_3": 
 	{
-		"address": "0387d9c14b7c93b8a91e6bb769eec7a7f48b5ec3",
+		"address": "null",
 		"ip": "128.226.88.155:8180",
 		"user": "pi"
 	},
 	"R1_pi4_4": 
 	{
-		"address": "25e30de57f4ac8344fc28c2d7bfc06403ca3612f",
+		"address": "null",
 		"ip": "128.226.79.31:8180",
 		"user": "pi"
 	},
 	"R2_pi4_1": 
 	{
-		"address": "bf28559ae3fd1037fda3296c6ec1ed44a2233c82",
+		"address": "null",
 		"ip": "128.226.78.195:8180",
 		"user": "pi"
 	},
 	"R2_pi4_2": 
 	{
-		"address": "c966e434ebad3588f147da9bd79a2bb484d5aa99",
+		"address": "null",
 		"ip": "128.226.77.222:8180",
 		"user": "pi"
 	},
 	"R2_pi4_3": 
 	{
-		"address": "ceaff0415c466b242bd56e048a787d4a559042a2",
+		"address": "null",
 		"ip": "128.226.88.120:8180",
 		"user": "pi"
 	},
 	"R2_pi4_4": 
 	{
-		"address": "a39d977bd5e7d3ecabd1750e769e6855ea31062f",
+		"address": "null",
 		"ip": "128.226.77.111:8180",
 		"user": "pi"
 	},
 	"R3_pi4_1": 
 	{
-		"address": "6a4f375a63494d49bf6d88124fa987ef8bcdc977",
+		"address": "null",
 		"ip": "128.226.79.13:8180",
 		"user": "pi"
 	},
 	"R3_pi4_2": 
 	{
-		"address": "53bc4d2ea51f7571c48353e2ec8cd4e04d23142e",
+		"address": "null",
 		"ip": "128.226.79.225:8180",
 		"user": "pi"
 	},
 	"R3_pi4_3": 
 	{
-		"address": "13f7570f135395e951511268a8fad9aee8a66fdb",
+		"address": "null",
 		"ip": "128.226.79.9:8180",
 		"user": "pi"
 	},
 	"R3_pi4_4": 
 	{
-		"address": "0c66378bb964c03fbcf3ce8806aa4ea13c1ac060",
+		"address": "null",
 		"ip": "128.226.79.168:8180",
+		"user": "pi"
+	},
+	"R4_pi4_1": 
+	{
+		"address": "null",
+		"ip": "128.226.77.179:8180",
+		"user": "pi"
+	},
+	"R4_pi4_2": 
+	{
+		"address": "null",
+		"ip": "128.226.88.145:8180",
+		"user": "pi"
+	},
+	"R4_pi4_3": 
+	{
+		"address": "null",
+		"ip": "128.226.78.231:8180",
+		"user": "pi"
+	},
+	"R4_pi4_4": 
+	{
+		"address": "null",
+		"ip": "128.226.78.83:8180",
 		"user": "pi"
 	}
 }
