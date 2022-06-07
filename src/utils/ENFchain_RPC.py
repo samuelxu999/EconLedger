@@ -19,7 +19,7 @@ from network.wallet import Wallet
 from network.nodes import *
 from consensus.transaction import Transaction
 from consensus.block import Block
-from consensus.consensus import POW, POE
+from consensus.consensus import POE
 from utils.utilities import TypesUtil, FileUtil
 from utils.service_api import SrvAPI
 from utils.Swarm_RPC import Swarm_RPC

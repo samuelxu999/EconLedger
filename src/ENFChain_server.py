@@ -25,7 +25,7 @@ from utils.utilities import FileUtil, TypesUtil, DatetimeUtil
 from consensus.transaction import Transaction
 from consensus.block import Block
 from consensus.validator import Validator
-from consensus.consensus import *
+from consensus.consensus import POE
 from utils.service_api import SrvAPI
 from randomness.randshare import RandShare, RandOP
 from utils.ENFchain_RPC import swarm_utils
@@ -270,7 +270,7 @@ def mine_block():
 	FileUtil.save_testlog('test_results', 'exec_mining.log', format(exec_time*1000, '.3f'))
 	
 	#broadcast proposed block
-	if( (myblockchain.consensus==ConsensusType.PoW) or (not Block.isEmptyBlock(new_block)) ):
+	if( (not Block.isEmptyBlock(new_block)) ):
 		#broadcast new block to peer nodes
 		#myblockchain.peer_nodes.load_ByAddress()
 		SrvAPI.broadcast_POST(myblockchain.peer_nodes.get_nodelist(), new_block, '/test/block/verify')
@@ -617,7 +617,6 @@ if __name__ == '__main__':
 		## ------------------------ Instantiate the Validator ----------------------------------
 		myblockchain = Validator(port=args.port, 
 								bootstrapnode=args.bootstrapnode,
-								consensus=ConsensusType.PoE, 
 								block_epoch=args.blockepoch,
 								pause_epoch=args.pauseepoch,
 								phase_delay=args.phasedelay,

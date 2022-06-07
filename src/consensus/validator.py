@@ -31,7 +31,7 @@ from network.nodes import PeerNodes
 from consensus.block import Block
 from consensus.vote import VoteCheckPoint
 from utils.db_adapter import DataManager
-from consensus.consensus import *
+from consensus.consensus import POE
 from utils.configuration import *
 from utils.service_api import SrvAPI
 from utils.ENFchain_RPC import ENFchain_RPC, swarm_utils
@@ -44,11 +44,11 @@ class Validator(object):
 	self.node_id: 						GUID 
 	self.consensus: 					Consensus algorithm
 	self.chain_db: 						local chain database adapter
-	self.consensus: 					consensus algorithm
 	self.wallet: 						wallet account management
 	self.peer_nodes: 					peer nodes management 
 
 	self.transactions: 					local transaction pool
+	self.enf_proof: 					local enf_proof pool
 	self.chain: 						local chain data buffer
 	self.block_dependencies: 			used to save blocks need for dependency
 	self.vote_dependencies: 			used to save pending vote need for dependency
@@ -60,7 +60,6 @@ class Validator(object):
 	self.votes: 						Map {sender -> vote_db object} which contains all the votes data for check
 	self.vote_count: 					Map {source_hash -> {target_hash -> count}} to count the votes
 
-	self.sum_stake:						Summary of stake that all validators, used for PoS;
 	self.committee_size:				Number of validators to participant the consensus committee;
 	self.block_epoch:					Block proposal epoch size, used for set finalized checkpoint;
 	
@@ -69,8 +68,7 @@ class Validator(object):
 	--------------------------------------------------------------------------------------------------------------
 	''' 
 
-	def __init__(self, 	port, bootstrapnode,
-						consensus=ConsensusType.PoW, 
+	def __init__(self, 	port, bootstrapnode,						
 						block_epoch=EPOCH_SIZE, 
 						pause_epoch=1, 
 						phase_delay=BOUNDED_TIME,
@@ -107,7 +105,7 @@ class Validator(object):
 		self.votes = {}
 
 		#choose consensus algorithm
-		self.consensus = consensus
+		# self.consensus = consensus
 
 		#-------------- load chain info ---------------
 		chain_info = self.load_chainInfo()
@@ -139,11 +137,8 @@ class Validator(object):
 		# point current head to processed_head
 		self.current_head = self.processed_head
 
-		# set total stake and number of validators
-		ls_nodes=list(self.peer_nodes.get_nodelist())
-		# set sum_stake is peer nodes count
-		self.sum_stake = len(ls_nodes)
-		# set committee_size as peer nodes count 
+		# set committee_size as peer nodes count
+		ls_nodes=list(self.peer_nodes.get_nodelist()) 
 		self.committee_size = len(ls_nodes)
 		# set block_epoch given args
 		self.block_epoch = block_epoch;
@@ -358,8 +353,7 @@ class Validator(object):
 				FileUtil.save_testlog('test_results', 'exec_mining.log', format(exec_time*1000, '.3f'))
 				
 				# 2) broadcast proposed block to peer nodes
-				if( (self.consensus==ConsensusType.PoW) or 
-					(not Block.isEmptyBlock(new_block)) ):
+				if(not Block.isEmptyBlock(new_block)) :
 					SrvAPI.broadcast_POST(self.peer_nodes.get_nodelist(), new_block, '/test/block/verify')
 				time.sleep(step_delay)
 
@@ -435,7 +429,7 @@ class Validator(object):
 		logger.info("Chain information:")
 		logger.info("    uuid:                         {}".format(self.node_id))
 		logger.info("    main chain blocks:            {}".format(self.processed_head['height']+1))
-		logger.info("    consensus:                    {}".format( self.consensus.name) )
+		# logger.info("    consensus:                    {}".format( self.consensus.name) )
 		logger.info("    block proposal epoch:         {}".format( self.block_epoch) )
 		logger.info("    pause epoch size:             {}".format( self.pause_epoch) )
 		logger.info("    current head:                 {}    height: {}".format(self.current_head['hash'],
@@ -476,9 +470,7 @@ class Validator(object):
 		'''
 		ls_nodes=list(self.peer_nodes.get_nodelist())
 
-		# refresh sum_stake and committee_size as peer nodes change
-		# set sum_stake is peer nodes count
-		self.sum_stake = len(ls_nodes)
+		# refresh committee_size as peer nodes change
 		# set committee size as peer nodes count 
 		self.committee_size = len(ls_nodes)
 
@@ -584,14 +576,14 @@ class Validator(object):
 		if(verify_result):
 			## discard duplicated tx in general scenario
 			if(json_transaction not in self.transactions):
-				if(self.consensus==ConsensusType.PoE):
-					## In current round, duplicated ENF proof from a validator will be discarded.
-					for json_tx  in self.transactions:
-						if(json_transaction['sender_address']==json_tx['sender_address']):
-							return False
-					## append tx to local txs pool.
-					self.transactions.append(json_transaction)
-					return True
+				# if(self.consensus==ConsensusType.PoE):
+				## In current round, duplicated ENF proof from a validator will be discarded.
+				for json_tx in self.transactions:
+					if(json_transaction['sender_address']==json_tx['sender_address']):
+						return False
+				## append tx to local txs pool.
+				self.transactions.append(json_transaction)
+				return True
 		else:
 			return False
 
@@ -634,14 +626,14 @@ class Validator(object):
 		Args:
 			@ json_block: return mined block
 		"""
-		if(not self.consensus==ConsensusType.PoE):
-			# remove committed transactions in head block
-			head_block = self.current_head
-			for transaction in head_block['transactions']:
-				if(transaction in self.transactions):
-					self.transactions.remove(transaction)
+		# if(not self.consensus==ConsensusType.PoE):
+		# 	# remove committed transactions in head block
+		# 	head_block = self.current_head
+		# 	for transaction in head_block['transactions']:
+		# 		if(transaction in self.transactions):
+		# 			self.transactions.remove(transaction)
 
-		# commit transactions based on COMMIT_TRANS
+		## commit transactions based on COMMIT_TRANS
 		commit_transactions = []
 		if( len(self.transactions)<=COMMIT_TRANS ):
 			commit_transactions = copy.copy(self.transactions)
@@ -649,7 +641,7 @@ class Validator(object):
 		else:
 			commit_transactions = copy.copy(self.transactions[:COMMIT_TRANS])
 
-		# set head as last block and used for new block proposal process
+		## set head as last block and used for new block proposal process
 		last_block = self.processed_head
 
 		block_data = {'height': last_block['height'],
@@ -660,32 +652,16 @@ class Validator(object):
 
 		parent_block = Block.json_to_block(last_block)
 		sender = self.wallet.accounts[0]
-		# execute mining task given consensus algorithm
-		if(self.consensus==ConsensusType.PoW):
-			# mining new nonce
-			nonce = POW.proof_of_work(block_data, commit_transactions)
-			new_block = Block(parent_block, commit_transactions, nonce)
-		elif(self.consensus==ConsensusType.PoS):
-			# propose new block given stake weight
-			if( POS.proof_of_stake(block_data, commit_transactions, self.node_id, 
-									TEST_STAKE_WEIGHT, self.sum_stake )!=0 ):
-				new_block = Block(parent_block, commit_transactions, self.node_id)	
-			else:
-				# generate empty block without transactions
-				new_block = Block(parent_block)	
-		elif(self.consensus==ConsensusType.PoE):
-			if( POE.proof_of_enf(commit_transactions, sender['address']) ):
-				new_block = Block(parent_block, commit_transactions, self.node_id)
-			else:
-				# generate empty block without transactions
-				new_block = Block(parent_block)	
+		## execute mining task and generate candidate block
+		if( POE.proof_of_enf(commit_transactions, sender['address']) ):
+			new_block = Block(parent_block, commit_transactions, self.node_id)
 		else:
 			# generate empty block without transactions
-			new_block = Block(parent_block)				
+			new_block = Block(parent_block)	
 
 		json_block = new_block.to_json()
 
-		# add sender address and signature
+		## add sender address and signature
 		if(self.wallet.accounts!=0):
 			# sender = self.wallet.accounts[0]
 			sign_data = new_block.sign(sender['private_key'], 'samuelxu999')
@@ -748,21 +724,21 @@ class Validator(object):
 			return False
 
 		# c) execute valid proof task given consensus algorithm
-		if(self.consensus==ConsensusType.PoW):
-			if( not POW.valid_proof(current_block['merkle_root'], current_block['previous_hash'], current_block['nonce']) ):
-				logger.info("PoW verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
-				return False
-		elif(self.consensus==ConsensusType.PoS):
-			if( not POS.valid_proof(current_block['merkle_root'], current_block['previous_hash'], current_block['nonce'], 
-									TEST_STAKE_WEIGHT, self.sum_stake) ):
-				logger.info("PoS verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
-				return False
-		elif(self.consensus==ConsensusType.PoE):
-			if( not POE.proof_of_enf(current_block['transactions'], current_block['sender_address']) ):
-				logger.info("PoE verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
-				return False			
-		else:
-			return False
+		# if(self.consensus==ConsensusType.PoW):
+		# 	if( not POW.valid_proof(current_block['merkle_root'], current_block['previous_hash'], current_block['nonce']) ):
+		# 		logger.info("PoW verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
+		# 		return False
+		# elif(self.consensus==ConsensusType.PoS):
+		# 	if( not POS.valid_proof(current_block['merkle_root'], current_block['previous_hash'], current_block['nonce'], 
+		# 							TEST_STAKE_WEIGHT, self.sum_stake) ):
+		# 		logger.info("PoS verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
+		# 		return False
+		# elif(self.consensus==ConsensusType.PoE):
+		if( not POE.proof_of_enf(current_block['transactions'], current_block['sender_address']) ):
+			logger.info("PoE verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
+			return False			
+		# else:
+		# 	return False
 
 		return True
 
@@ -1100,66 +1076,27 @@ class Validator(object):
 		head_block = self.current_head 
 		# we are on the right chain, the head is simply the latest block
 		if self.is_ancestor(self.highest_justified_checkpoint, head_block):
-			if(self.consensus==ConsensusType.PoS):
-				# get proof value used for choose current_head
-				new_proof=POS.get_proof(new_block['merkle_root'], 
-								new_block['previous_hash'], new_block['nonce'],self.sum_stake)
-				head_proof=POS.get_proof(head_block['merkle_root'], 
-								head_block['previous_hash'], head_block['nonce'],self.sum_stake)
-				# head is genesis block or new_block have smaller proof value than current head
-				logger.info( "new block sender:  {}".format(new_block['sender_address']))
+			## show head_block and new_block information
+			logger.info( "new block sender:  {}".format(new_block['sender_address']))
+			logger.info( "head block height: {} -- new block height: {}".format(head_block['height'], new_block['height']) )
+			
+			## 1) new block is 1 larger height, then update current_head to new block 
+			if( head_block['height'] == (new_block['height']-1) ):
+				self.current_head = new_block
+				logger.info("Update current_head: {}    height: {}".format(self.current_head['hash'], 
+																			self.current_head['height']) )
+				return
+
+			## 2) new block has the same height as current head
+			if( head_block['height']==new_block['height'] ):
+				## A) who includes more ENF transactions wins
+				new_proof = len(new_block['transactions'])
+				head_proof = len(head_block['transactions'])
 				logger.info( "head proof:        {} -- new proof:        {}".format(head_proof, new_proof) )
-				logger.info( "head block height: {} -- new block height: {}".format(head_block['height'], new_block['height']) )
-				
-				## 1) new block is 1 larger height, then update current_head to new block 
-				if( head_block['height'] == (new_block['height']-1) ):
+				if(new_proof>head_proof):
 					self.current_head = new_block
 					logger.info("Update current_head: {}    height: {}".format(self.current_head['hash'], 
 																				self.current_head['height']) )
-					return
-
-				## 2) new block has the same height as current head
-				if( head_block['height']==new_block['height'] ):
-					# A) who holds smaller proof wins
-					if(new_proof<head_proof):
-						self.current_head = new_block
-						logger.info("Update current_head: {}    height: {}".format(self.current_head['hash'], 
-																					self.current_head['height']) )
-						return
-
-					# B) If they have same proof wins, who has larger nounce (credit) wins
-					if( new_proof==head_proof and new_block['nonce']>head_block['nonce'] ):
-						self.current_head = new_block
-						logger.info("Update current_head: {}    height: {}".format(self.current_head['hash'], 
-																					self.current_head['height']) )
-			elif(self.consensus==ConsensusType.PoE):
-				## show head_block and new_block information
-				logger.info( "new block sender:  {}".format(new_block['sender_address']))
-				logger.info( "head block height: {} -- new block height: {}".format(head_block['height'], new_block['height']) )
-				
-				## 1) new block is 1 larger height, then update current_head to new block 
-				if( head_block['height'] == (new_block['height']-1) ):
-					self.current_head = new_block
-					logger.info("Update current_head: {}    height: {}".format(self.current_head['hash'], 
-																				self.current_head['height']) )
-					return
-
-				## 2) new block has the same height as current head
-				if( head_block['height']==new_block['height'] ):
-					## A) who includes more ENF transactions wins
-					new_proof = len(new_block['transactions'])
-					head_proof = len(head_block['transactions'])
-					logger.info( "head proof:        {} -- new proof:        {}".format(head_proof, new_proof) )
-					if(new_proof>head_proof):
-						self.current_head = new_block
-						logger.info("Update current_head: {}    height: {}".format(self.current_head['hash'], 
-																					self.current_head['height']) )
-			else:
-				self.processed_head = new_block
-				logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
-																			self.processed_head['height']) )
-			#self.main_chain_size += 1
-
 	def fix_processed_head(self):
 		'''
 		Reset processed_head as each block proposal epoch finished:
@@ -1168,38 +1105,38 @@ class Validator(object):
 		3) remove committed transactions from local txs pool 
 		4) update chaininfo and save into local file
 		'''
-		if( self.consensus==ConsensusType.PoS or self.consensus==ConsensusType.PoE ):
-			## 1) if none of validator propose block, use empty block as header
-			if(self.processed_head == self.current_head):
-				#generate empty block
-				last_block = self.processed_head
-				parent_block = Block.json_to_block(last_block)
-				json_block = Block(parent_block).to_json()
-				json_block['sender_address'] = 'Null'
-				json_block['signature'] = 'Null'
-				# ------------  add block to buffer --------------
-				# self.add_block(json_block, 0)
-				self.msg_buf.append([1, json_block, 0])
+		# if( self.consensus==ConsensusType.PoS or self.consensus==ConsensusType.PoE ):
+		## 1) if none of validator propose block, use empty block as header
+		if(self.processed_head == self.current_head):
+			#generate empty block
+			last_block = self.processed_head
+			parent_block = Block.json_to_block(last_block)
+			json_block = Block(parent_block).to_json()
+			json_block['sender_address'] = 'Null'
+			json_block['signature'] = 'Null'
+			# ------------  add block to buffer --------------
+			# self.add_block(json_block, 0)
+			self.msg_buf.append([1, json_block, 0])
 
-				self.current_head = json_block
-				logger.info("Set current_head as emptyblock: {}".format(self.current_head))
-			
-			## 2) set processed_head as current_head
-			self.processed_head = self.current_head
+			self.current_head = json_block
+			logger.info("Set current_head as emptyblock: {}".format(self.current_head))
+		
+		## 2) set processed_head as current_head
+		self.processed_head = self.current_head
 
-			## 3) remove committed transactions in local txs pool
-			if(self.consensus==ConsensusType.PoE):
-				## a) all txs are only valid in current epoch, clear local txs pool 
-				self.transactions = []
-			else:
-				## b) remove committed transactions in head block from local txs pool
-				for transaction in self.processed_head['transactions']:
-					if(transaction in self.transactions):
-						self.transactions.remove(transaction)
-			logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
-																		self.processed_head['height']) )
-			# 4) update chaininfo and save into local file
-			self.save_chainInfo()	
+		## 3) remove committed transactions in local txs pool
+		# if(self.consensus==ConsensusType.PoE):
+		## a) all enf_proofs are only valid in current epoch, clear local enf_proof pool 
+		self.transactions = []
+		# need handle tx pool
+		# 	## b) remove committed transactions in head block from local txs pool
+		# 	for transaction in self.processed_head['transactions']:
+		# 		if(transaction in self.transactions):
+		# 			self.transactions.remove(transaction)
+		logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
+																	self.processed_head['height']) )
+		# 4) update chaininfo and save into local file
+		self.save_chainInfo()	
 
 	def add_dependency(self, hash_value, json_data, op_type=0):
 		'''
