@@ -100,7 +100,7 @@ def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUN
 
 	# S1: send test transactions
 	start_time=time.time()
-	ENFchain_client.start_tx_submit(target_address, True)
+	ENFchain_client.start_enf_submit(target_address, True)
 	head_pos = 0
 	# head_pos = ENFchain_client.launch_ENF(samples_head, samples_size)
 	exec_time=time.time()-start_time
@@ -501,18 +501,21 @@ if __name__ == "__main__":
 
 	elif(test_func == 2):
 		if(op_status == 1):
-			# ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
-			ENFchain_client.start_tx_submit(target_address)
+			ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
+			# ENFchain_client.start_enf_submit(target_address)
 		elif(op_status == 10):
 			# ENFchain_client.launch_ENF(samples_head, samples_size)
-			ENFchain_client.start_tx_submit(target_address, True)
+			ENFchain_client.start_enf_submit(target_address, True)
 		elif(op_status == 2):
 			ENFchain_client.start_mining(target_address, True)
 		elif(op_status == 3):
 			ENFchain_client.check_head()
 		elif(op_status == 4):
 			ENFchain_client.start_voting(target_address, True)
-		elif(op_status == 11):
+		elif(op_status == 110):
+			enf_proofs = ENFchain_client.get_enf_proofs(target_address)
+			logger.info(enf_proofs)
+		elif(op_status == 111):
 			transactions = ENFchain_client.get_transactions(target_address)
 			logger.info(transactions)
 		elif(op_status == 12):

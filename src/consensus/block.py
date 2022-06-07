@@ -28,14 +28,15 @@ class Block(object):
 	    nonce: 			nonce proof to meet difficult level.
 	"""
 
-	def __init__(self, parent=None, transactions=[], nonce = 0):
+	def __init__(self, parent=None, transactions=[], enf_proofs=[], nonce = 0):
 		"""A block contains the following arguments:
 
-		self.hash: hash of the block
-		self.height: height of the block (genesis = 0)
+		self.hash: 			hash of the block
+		self.height: 		height of the block (genesis = 0)
 		self.previous_hash: hash of the parent block
-		self.transactions: transactions list
-		self.merkle_root: hash of merkle tree root.
+		self.transactions: 	transactions list
+		self.merkle_root: 	merkle tree root (hash) of transactions.
+		self.enf_proofs: 	enf proof list
 		"""
 		# If we are genesis block, set initial values
 		if not parent:
@@ -46,6 +47,7 @@ class Block(object):
 			self.previous_hash = parent.hash
 		
 		self.transactions = transactions
+		self.enf_proofs = enf_proofs
 		self.nonce = nonce
 
 		# convert to a order-dict transactions list
@@ -66,6 +68,7 @@ class Block(object):
 			'previous_hash': self.previous_hash,
 			'transactions': self.transactions,
 			'merkle_root': self.merkle_root,
+			'enf_proofs': self.enf_proofs,
 			'nonce': self.nonce}
 		# calculate hash of block 
 		self.hash = TypesUtil.hash_json(block)
@@ -81,6 +84,7 @@ class Block(object):
 		order_dict['previous_hash'] = self.previous_hash
 		order_dict['transactions'] = self.transactions
 		order_dict['merkle_root'] = self.merkle_root
+		order_dict['enf_proofs'] = self.enf_proofs
 		order_dict['nonce'] = self.nonce
 		return order_dict
     
@@ -93,6 +97,7 @@ class Block(object):
 				'previous_hash': self.previous_hash,
 				'transactions': self.transactions,
 				'merkle_root': self.merkle_root,
+				'enf_proofs': self.enf_proofs,
 				'nonce': self.nonce }
 
 	def print_data(self):
@@ -102,6 +107,7 @@ class Block(object):
 		print('    previous_hash:',self.previous_hash)
 		print('    transactions:',self.transactions)
 		print('    merkle_root:',self.merkle_root)
+		print('    enf_proofs:',self.enf_proofs)
 		print('    nonce:',self.nonce)
 
 	def sign(self, sender_private_key, sk_pw):
@@ -151,6 +157,7 @@ class Block(object):
 		block.previous_hash = block_json['previous_hash']
 		block.transactions = block_json['transactions']
 		block.merkle_root = block_json['merkle_root']
+		block.enf_proofs = block_json['enf_proofs']
 		block.nonce = block_json['nonce']
 		return block
 

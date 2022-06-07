@@ -158,8 +158,8 @@ def commit_transaction():
 		
 	return jsonify({'request_transaction': respose_json}), 201
 
-@app.route('/test/transaction/submit', methods=['GET'])
-def submit_transaction():
+@app.route('/test/enf_proof/submit', methods=['GET'])
+def submit_enf_proof():
 	start_time=time.time()
 
 	## ------------ build enf_tx -------------------
@@ -191,7 +191,7 @@ def submit_transaction():
 	exec_time=time.time()-start_time
 	FileUtil.save_testlog('test_results', 'exec_submit_tx.log', format(exec_time*1000, '.3f'))
 	
-	return jsonify({'submit_enf_tx': 'Succeed!'}), 201
+	return jsonify({'submit_enf_proof': 'Succeed!'}), 201
 
 #GET req
 @app.route('/test/transaction/verify', methods=['POST'])
@@ -247,6 +247,14 @@ def get_transactions():
     response = {'transactions': transactions}
     return jsonify(response), 200
 
+@app.route('/test/enf_proofs/get', methods=['GET'])
+def get_enf_proofs():
+    # Get enf_proofs from local pool
+    enf_proofs = myblockchain.enf_proofs
+
+    response = {'enf_proofs': enf_proofs}
+    return jsonify(response), 200
+
 @app.route('/test/chain/get', methods=['GET'])
 def full_chain():
 	myblockchain.load_chain()
@@ -281,7 +289,6 @@ def mine_block():
 			'signature': new_block['signature'],
 			'hash': new_block['hash'],
 			'height': new_block['height'],
-			'transactions': new_block['transactions'],
 			'nonce': new_block['nonce'],
 			'previous_hash': new_block['previous_hash'],
 		}

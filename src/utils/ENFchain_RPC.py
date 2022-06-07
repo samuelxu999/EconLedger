@@ -235,7 +235,7 @@ class ENFchain_RPC(object):
 		## value comes from hash value to indicate address that ENF samples are saved on swarm network.
 		json_value={}
 		json_value['sender_address'] = sender_address
-		json_value['swarm_hash'] = swarm_utils.getSwarmhash(sender_address, samples_head, samples_size)
+		json_value['data_ref'] = swarm_utils.getSwarmhash(sender_address, samples_head, samples_size)
 		## convert json_value to string to ensure consistency in tx verification.
 		str_value = TypesUtil.json_to_string(json_value)
 
@@ -259,19 +259,23 @@ class ENFchain_RPC(object):
 	def get_transactions(self, target_address):
 		json_response=SrvAPI.GET('http://'+target_address+'/test/transactions/get')
 		transactions = json_response['transactions']
-		# print(POE.proof_of_enf(transactions, '1ad48ca78653f3f4b16b0622432db7d995613c42'))
 		return transactions
+
+	def get_enf_proofs(self, target_address):
+		json_response=SrvAPI.GET('http://'+target_address+'/test/enf_proofs/get')
+		json_enf_proofs = json_response['enf_proofs']
+		return json_enf_proofs
 
 	def query_transaction(self, target_address, tx_json):
 		json_response=SrvAPI.GET('http://'+target_address+'/test/transaction/query', tx_json)
 		return json_response
 
-	def start_tx_submit(self, target_address, isBroadcast=False):
+	def start_enf_submit(self, target_address, isBroadcast=False):
 		if(not isBroadcast):
-			json_response=SrvAPI.GET('http://'+target_address+'/test/transaction/submit')
+			json_response=SrvAPI.GET('http://'+target_address+'/test/enf_proof/submit')
 		else:
-			SrvAPI.broadcast_GET(self.peer_nodes.get_nodelist(), '/test/transaction/submit', True)
-			json_response = {'start tx_submit': 'broadcast'}
+			SrvAPI.broadcast_GET(self.peer_nodes.get_nodelist(), '/test/enf_proof/submit', True)
+			json_response = {'start_enf_submit': 'broadcast'}
 
 		logger.info(json_response)
 

@@ -48,7 +48,7 @@ class Validator(object):
 	self.peer_nodes: 					peer nodes management 
 
 	self.transactions: 					local transaction pool
-	self.enf_proof: 					local enf_proof pool
+	self.enf_proofs: 					local enf_proof pool
 	self.chain: 						local chain data buffer
 	self.block_dependencies: 			used to save blocks need for dependency
 	self.vote_dependencies: 			used to save pending vote need for dependency
@@ -74,46 +74,44 @@ class Validator(object):
 						phase_delay=BOUNDED_TIME,
 						frequency_peers=600):
 
-		# Instantiate the Wallet
+		## Instantiate the Wallet
 		self.wallet = Wallet()
 		self.wallet.load_accounts()
 
-		# Instantiate the PeerNodes
+		## Instantiate the PeerNodes
 		self.peer_nodes = PeerNodes()
 		self.peer_nodes.load_ByAddress()
 
-		# New database manager to manage chain data
+		## New database manager to manage chain data
 		self.chain_db = DataManager(CHAIN_DATA_DIR, BLOCKCHAIN_DATA)
 		self.chain_db.create_table(CHAIN_TABLE)
 
-		#Create genesis block
+		## Create genesis block
 		genesis_block = Block()
 		json_data = genesis_block.to_json()
 
-		# no local chain data, generate a new validator information
+		# #no local chain data, generate a new validator information
 		if( self.chain_db.select_block(CHAIN_TABLE)==[] ):
 			#add genesis_block as 2-finalized
 			self.add_block(json_data, 2)
 		
-		# new chain buffer
+		## new chain buffer
 		self.chain = []
 
-		# new transaction pool
-		self.transactions = []                            
+		## new local tx and enf_proof pool
+		self.transactions = []
+		self.enf_proofs = []                           
 
-		# votes pool Map {sender -> vote_db object}
+		## votes pool Map {sender -> vote_db object}
 		self.votes = {}
 
-		#choose consensus algorithm
-		# self.consensus = consensus
-
-		#-------------- load chain info ---------------
+		## -------------- load chain info ---------------
 		chain_info = self.load_chainInfo()
 		if(chain_info == None):
 			#Generate random number to be used as node_id
 			self.node_id = str(uuid4()).replace('-', '')
 
-			# initialize pending data buffer
+			## initialize pending data buffer
 			self.block_dependencies = {}
 			self.vote_dependencies = {}
 			self.processed_head = json_data
@@ -121,10 +119,10 @@ class Validator(object):
 			self.highest_finalized_checkpoint = json_data
 			#self.votes = {}
 			self.vote_count = {}
-			# update chain info
+			## update chain info
 			self.save_chainInfo()
 		else:
-			#Generate random number to be used as node_id
+			## Generate random number to be used as node_id
 			self.node_id = chain_info['node_id']
 			self.block_dependencies = chain_info['block_dependencies']
 			self.vote_dependencies = chain_info['vote_dependencies']
@@ -134,13 +132,14 @@ class Validator(object):
 			#self.votes = chain_info['votes']
 			self.vote_count = chain_info['vote_count']
 		
-		# point current head to processed_head
+		## point current head to processed_head
 		self.current_head = self.processed_head
 
-		# set committee_size as peer nodes count
+		## set committee_size as peer nodes count
 		ls_nodes=list(self.peer_nodes.get_nodelist()) 
 		self.committee_size = len(ls_nodes)
-		# set block_epoch given args
+		
+		## set block_epoch given args
 		self.block_epoch = block_epoch;
 
 		''' 
@@ -148,13 +147,13 @@ class Validator(object):
 		The process_msg() method will be started and it will run in the background
 		until the application exits.
 		'''
-		# new buffer list to process received message by on_receive().
+		## new buffer list to process received message by on_receive().
 		self.msg_buf = []
-		# define a thread to handle received messages by executing process_msg()
+		## define a thread to handle received messages by executing process_msg()
 		self.rev_thread = threading.Thread(target=self.process_msg, args=())
-		# Set as daemon thread
+		## Set as daemon thread
 		self.rev_thread.daemon = True
-		# Start the daemonized method execution
+		## Start the daemonized method execution
 		self.rev_thread.start()   
 
 		''' 
@@ -162,24 +161,24 @@ class Validator(object):
 		The exec_consensus() method will be started and it will run in the background
 		until the application exits.
 		'''
-		# the flag used to trigger consensus protocol execution.
+		## the flag used to trigger consensus protocol execution.
 		self.runConsensus = False
-		# set pause threshold for check synchronization
+		## set pause threshold for check synchronization
 		self.pause_epoch = pause_epoch
-		# set delay time between operations in consensus protocol.
+		## set delay time between operations in consensus protocol.
 		self.phase_delay = phase_delay
-		# define a thread to handle received messages by executing exec_consensus()
+		## define a thread to handle received messages by executing exec_consensus()
 		self.consensus_thread = threading.Thread(target=self.exec_consensus, args=())
-		# Set as daemon thread
+		## Set as daemon thread
 		self.consensus_thread.daemon = True
-		# Start the daemonized method execution
+		## Start the daemonized method execution
 		self.consensus_thread.start()  
-		# Indicate current consensus status: 
-		# 0-ENF proposal; 1-ENF-mining; 2-fix head; 
-		# 3-voting-based finality; 4-synchronization
+		## Indicate current consensus status: 
+		## 0-ENF proposal; 1-ENF-mining; 2-fix head; 
+		## 3-voting-based finality; 4-synchronization
 		self.statusConsensus = 0 
 
-		# ------------------------ Instantiate the ENFchain_RPC ----------------------------------
+		## ------------------------ Instantiate the ENFchain_RPC ----------------------------------
 		self.RPC_client = ENFchain_RPC(keystore="keystore", 
 											keystore_net="keystore_net")   
 		self.frequency_peers = frequency_peers
@@ -572,20 +571,27 @@ class Validator(object):
 		else:
 			verify_result = False
 
-		## 2) check if a tx comes from the same sender in current round. 
-		if(verify_result):
-			## discard duplicated tx in general scenario
-			if(json_transaction not in self.transactions):
-				# if(self.consensus==ConsensusType.PoE):
-				## In current round, duplicated ENF proof from a validator will be discarded.
-				for json_tx in self.transactions:
-					if(json_transaction['sender_address']==json_tx['sender_address']):
-						return False
-				## append tx to local txs pool.
-				self.transactions.append(json_transaction)
-				return True
-		else:
+		## return if tx.verify() failed. 
+		if(not verify_result):
 			return False
+		
+		## discard duplicated tx in general scenario
+		if(json_transaction in self.transactions):
+			return False
+
+		## check if enf_proof type
+		if("swarm_hash" in json_transaction['value']):
+			## In current round, duplicated ENF proof from a validator will be discarded.
+			for json_tx in self.enf_proofs:
+				if(json_transaction['sender_address']==json_tx['sender_address']):
+					return False
+			## append to local enf_proof pool.
+			self.enf_proofs.append(json_transaction)
+		else:
+			## append to local transactions pool.
+			self.transactions.append(json_transaction)
+		
+		return True
 
 	def build_enf_tx(self):
 		"""
@@ -626,14 +632,13 @@ class Validator(object):
 		Args:
 			@ json_block: return mined block
 		"""
-		# if(not self.consensus==ConsensusType.PoE):
-		# 	# remove committed transactions in head block
-		# 	head_block = self.current_head
-		# 	for transaction in head_block['transactions']:
-		# 		if(transaction in self.transactions):
-		# 			self.transactions.remove(transaction)
+		# remove committed transactions in head block
+		head_block = self.current_head
+		for transaction in head_block['transactions']:
+			if(transaction in self.transactions):
+				self.transactions.remove(transaction)
 
-		## commit transactions based on COMMIT_TRANS
+		## set commit transactions based on COMMIT_TRANS
 		commit_transactions = []
 		if( len(self.transactions)<=COMMIT_TRANS ):
 			commit_transactions = copy.copy(self.transactions)
@@ -648,13 +653,18 @@ class Validator(object):
 					'previous_hash': last_block['previous_hash'],
 					'transactions': last_block['transactions'],
 					'merkle_root': last_block['merkle_root'],
+					'enf_proofs': last_block['enf_proofs'],
 					'nonce': last_block['nonce']}
 
 		parent_block = Block.json_to_block(last_block)
 		sender = self.wallet.accounts[0]
+
+		## set committeed enf proof
+		commit_enf_proofs = copy.copy(self.enf_proofs)
+
 		## execute mining task and generate candidate block
-		if( POE.proof_of_enf(commit_transactions, sender['address']) ):
-			new_block = Block(parent_block, commit_transactions, self.node_id)
+		if( POE.proof_of_enf(commit_enf_proofs, sender['address']) ):
+			new_block = Block(parent_block, commit_transactions, commit_enf_proofs, self.node_id)
 		else:
 			# generate empty block without transactions
 			new_block = Block(parent_block)	
@@ -700,9 +710,9 @@ class Validator(object):
 			return
 
 		#=========2: Check that the Proof of Work is correct given current block data =========
-		# a) reject block with empty transactions
-		if(current_block['transactions']==[]):
-			logger.info("Invalid block with empty txs from sender: {}".format(current_block['sender_address']))
+		# a) reject block with empty enf_proofs
+		if(current_block['enf_proofs']==[]):
+			logger.info("Invalid block with empty enf_proofs from sender: {}".format(current_block['sender_address']))
 			return False
 
 		# b) verify if transactions list has the same merkel root hash as in block['merkle_root']
@@ -723,22 +733,9 @@ class Validator(object):
 			logger.info("Transactions merkel tree root verify fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
 			return False
 
-		# c) execute valid proof task given consensus algorithm
-		# if(self.consensus==ConsensusType.PoW):
-		# 	if( not POW.valid_proof(current_block['merkle_root'], current_block['previous_hash'], current_block['nonce']) ):
-		# 		logger.info("PoW verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
-		# 		return False
-		# elif(self.consensus==ConsensusType.PoS):
-		# 	if( not POS.valid_proof(current_block['merkle_root'], current_block['previous_hash'], current_block['nonce'], 
-		# 							TEST_STAKE_WEIGHT, self.sum_stake) ):
-		# 		logger.info("PoS verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
-		# 		return False
-		# elif(self.consensus==ConsensusType.PoE):
-		if( not POE.proof_of_enf(current_block['transactions'], current_block['sender_address']) ):
+		if( not POE.proof_of_enf(current_block['enf_proofs'], current_block['sender_address']) ):
 			logger.info("PoE verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
 			return False			
-		# else:
-		# 	return False
 
 		return True
 
@@ -1124,15 +1121,13 @@ class Validator(object):
 		## 2) set processed_head as current_head
 		self.processed_head = self.current_head
 
-		## 3) remove committed transactions in local txs pool
-		# if(self.consensus==ConsensusType.PoE):
+		## 3) ---------- remove committed transactions in local txs pool ---------------
 		## a) all enf_proofs are only valid in current epoch, clear local enf_proof pool 
-		self.transactions = []
-		# need handle tx pool
-		# 	## b) remove committed transactions in head block from local txs pool
-		# 	for transaction in self.processed_head['transactions']:
-		# 		if(transaction in self.transactions):
-		# 			self.transactions.remove(transaction)
+		self.enf_proofs = []
+		## b) remove committed transactions in head block from local txs pool
+		for transaction in self.processed_head['transactions']:
+			if(transaction in self.transactions):
+				self.transactions.remove(transaction)
 		logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
 																	self.processed_head['height']) )
 		# 4) update chaininfo and save into local file

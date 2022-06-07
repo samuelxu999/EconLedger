@@ -24,14 +24,14 @@ class POE():
 	Proof-of-ENF consenses mechanism
 	'''
 	@staticmethod
-	def proof_of_enf(commit_transactions, validator_id):
+	def proof_of_enf(commit_enf_proofs, validator_id):
 		"""
 		Proof of ENF algorithm
-		@ commit_transactions: 	commited transactions list when new block is generated
+		@ commit_enf_proofs: 	commited enf_proofs list when new block is generated
 		@ validator_id: 		the address of validator 
 		"""
-		## 1) query ENF samples from swarm nodes given commit_transactions.
-		ENF_samples = Swarm_RPC.get_ENFsamples(commit_transactions)
+		## 1) query ENF samples from swarm nodes given commit_enf_proofs.
+		ENF_samples = Swarm_RPC.get_ENFsamples(commit_enf_proofs)
 
 		## For byzantine tolerant: 3f+1, at least 4 samples points are required. 
 		if(len(ENF_samples)<4):
