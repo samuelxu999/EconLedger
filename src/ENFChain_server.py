@@ -33,34 +33,31 @@ from utils.ENFchain_RPC import swarm_utils
 logger = logging.getLogger(__name__)
 
 def build_tx(tx_json):
-
-	#----------------- test transaction --------------------
+	'''
+	Build a transaction that encapsulate a json style value
+	'''
+	## use validator's account
 	sender = myblockchain.wallet.accounts[0]
 
-	# generate transaction
+	## input head information of a tx
 	sender_address = sender['address']
 	sender_private_key = sender['private_key']
 	recipient_address = sender['address']
 
+	## get time stamp
 	time_stamp = time.time()
+
+	## covert tx_json to string format
 	tx_str = TypesUtil.json_to_string(tx_json)
-	# value = TypesUtil.string_to_bytes(tx_str)
-	# value = TypesUtil.string_to_hex(tx_str)
-	value = tx_str
 
-	mytransaction = Transaction(sender_address, sender_private_key, recipient_address, time_stamp, value)
+	## construct a tx object
+	mytransaction = Transaction(sender_address, sender_private_key, recipient_address, time_stamp, tx_str)
 
-	# sign transaction
-	sign_data = mytransaction.sign('samuelxu999')
-
-	# verify transaction
-	dict_transaction = Transaction.get_dict(mytransaction.hash,
-											mytransaction.sender_address, 
-	                                        mytransaction.recipient_address,
-	                                        mytransaction.time_stamp,
-	                                        mytransaction.value)
-	#send transaction
+	## convert tx object to json format
 	transaction_json = mytransaction.to_json()
+
+	## sign transaction and  add signature 
+	sign_data = mytransaction.sign('samuelxu999')
 	transaction_json['signature']=TypesUtil.string_to_hex(sign_data)
 
 	return transaction_json
@@ -106,8 +103,8 @@ def query_transaction():
 
 	return jsonify(response), 200
 
-@app.route('/test/transaction/commit', methods=['POST'])
-def commit_transaction():
+@app.route('/test/transaction/submit', methods=['POST'])
+def submit_transaction():
 	# parse data from request.data
 	req_data=TypesUtil.bytes_to_string(request.data)
 
@@ -116,35 +113,17 @@ def commit_transaction():
 	if(tx_json=='{}'):
 		abort(401, {'error': 'No transaction data'})
 
-	tx_valid = True
-	# logger.info( "tx_data: {}".format(tx_json))
-	tx_value = TypesUtil.json_to_string(tx_json)
-	# ------------- duplicate tx_value in tx pool, discard it -----------------
-	for tx in myblockchain.transactions:
-		if(tx_value == tx['value']):
-			tx_valid = False
-			break
-
-	# -------------- duplicate tx_data in block, discard it ------------------
-	json_blocks = myblockchain.load_chain()
-	for block in json_blocks:
-		for tx in block['transactions']:
-			if(tx_value==tx['value']):
-				tx_valid = False
-				break
-
 	respose_json = {}
-	if(tx_valid):
-		# build transaction data
-		transaction_json=build_tx(tx_json)
-		# broadcast transaction to peer nodes
-		SrvAPI.broadcast_POST(myblockchain.peer_nodes.get_nodelist(), 
-							transaction_json, '/test/transaction/verify')
-		respose_json['Status'] = tx_valid
-	else:
-		respose_json['Status'] = "{}: Duplicated tx.".format(tx_valid)
-		
-	return jsonify({'request_transaction': respose_json}), 201
+
+	## build transaction data
+	transaction_json=build_tx(tx_json)
+
+	## broadcast transaction to peer nodes
+	SrvAPI.broadcast_POST(myblockchain.peer_nodes.get_nodelist(), 
+						transaction_json, '/test/transaction/verify')
+
+	## return tx hash	
+	return jsonify({'submit_transaction': transaction_json['hash']}), 201
 
 @app.route('/test/enf_proof/submit', methods=['GET'])
 def submit_enf_proof():

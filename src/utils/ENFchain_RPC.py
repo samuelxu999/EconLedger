@@ -275,6 +275,10 @@ class ENFchain_RPC(object):
 		json_response=SrvAPI.GET('http://'+target_address+'/test/block/query', block_hash)
 		return json_response
 
+	def submit_transaction(self, target_address, tx_json):
+		json_response=SrvAPI.POST('http://'+target_address+'/test/transaction/submit', tx_json)
+		return json_response
+
 	def start_enf_submit(self, target_address, isBroadcast=False):
 		if(not isBroadcast):
 			json_response=SrvAPI.GET('http://'+target_address+'/test/enf_proof/submit')

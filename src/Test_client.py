@@ -436,6 +436,12 @@ if __name__ == "__main__":
 	elif(test_func == 2):
 		if(op_status == 10):
 			ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
+		elif(op_status == 101):
+			json_tx={}
+			json_tx['name']='Samuel'
+			json_tx['age']=28
+			ret_msg = ENFchain_client.submit_transaction(target_address, json_tx)
+			logger.info(ret_msg)
 		elif(op_status == 11):
 			# ENFchain_client.launch_ENF(samples_head, samples_size)
 			ENFchain_client.start_enf_submit(target_address, True)

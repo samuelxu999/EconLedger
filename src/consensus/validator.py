@@ -94,7 +94,7 @@ class Validator(object):
 		genesis_block = Block()
 		json_data = genesis_block.to_json()
 
-		# #no local chain data, generate a new validator information
+		## no local chain data, generate a new validator information
 		if( self.chain_db.select_block(CHAIN_TABLE)==[] ):
 			#add genesis_block as 2-finalized
 			self.add_block(json_data, 2)
@@ -196,7 +196,7 @@ class Validator(object):
 		'''
 		daemon thread function: handle message and save into local database
 		'''
-		# this variable is used as waiting time when there is no message for process.
+		## this variable is used as waiting time when there is no message for process.
 		while(True):
 			time.sleep(self.frequency_peers)
 			logger.info("Refresh alive peers' information")
@@ -550,9 +550,9 @@ class Validator(object):
 		"""
 		chain_info = {}
 		chain_info['node_id'] = self.node_id
-		chain_info['processed_head'] = self.processed_head
-		chain_info['highest_justified_checkpoint'] = self.highest_justified_checkpoint
-		chain_info['highest_finalized_checkpoint'] = self.highest_finalized_checkpoint
+		chain_info['processed_head'] = self.processed_head['hash']
+		chain_info['highest_justified_checkpoint'] = self.highest_justified_checkpoint['hash']
+		chain_info['highest_finalized_checkpoint'] = self.highest_finalized_checkpoint['hash']
 		chain_info['block_dependencies'] = self.block_dependencies
 		chain_info['vote_dependencies'] = self.vote_dependencies
 		#chain_info['votes'] = self.votes
@@ -567,7 +567,11 @@ class Validator(object):
 		Config file operation: load validator information from static json file
 		"""
 		if(os.path.isfile(CHAIN_DATA_DIR+'/'+CHAIN_INFO)):
-		    return FileUtil.JSON_load(CHAIN_DATA_DIR+'/'+CHAIN_INFO)
+			chain_info = FileUtil.JSON_load(CHAIN_DATA_DIR+'/'+CHAIN_INFO)
+			chain_info['processed_head'] = self.get_block(chain_info['processed_head'])
+			chain_info['highest_justified_checkpoint'] = self.get_block(chain_info['highest_justified_checkpoint'])
+			chain_info['highest_finalized_checkpoint'] = self.get_block(chain_info['highest_finalized_checkpoint'])
+			return chain_info
 		else:
 			return None
 
