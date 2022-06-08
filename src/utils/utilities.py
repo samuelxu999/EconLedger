@@ -16,10 +16,7 @@ import pickle
 import glob, os, fnmatch
 import numpy as np
 import csv
-import matplotlib
-matplotlib.use('Agg')
-
-import matplotlib.pyplot as plt
+from merklelib import MerkleTree, jsonify as merkle_jsonify
 
 '''
 FileUtil class for handling file data
@@ -386,57 +383,17 @@ class FuncUtil(object):
 	def hashfunc_sha1(data_value):
 		return hashlib.sha1(data_value).hexdigest()
 
-'''
-PlotUtil class for data visualization
-'''
-class PlotUtil(object):
+	## get merkle tree root hash given order transactions
 	@staticmethod
-	def Plotline(ENF_dataset, legend_label='', font_size=14, is_show=True, is_savefig=False, datafile=''):
-		'''
-		Function: plot ENF data as line on fig
-		@arguments: 
-		(in) ENF_dataset: 	ENF list dataset that can input two ENF signals
-			   font_size:	font size for label and legend
-			     is_show:	Display plot on screen
-			  is_savefig:	Save plot on local as *.png
-			  	datafile:	file name to save plot
-		'''
-		ls_color=['g', 'seagreen', 'darkorange', 'r', 'b', 'gray']
-		leg_label = []
-		## For each node to get ENF vector
-		for ENF_id in range(len(ENF_dataset)):
-			#generate x and y data
-			xdata = [];
-			ydata = [];
-			ls_dataset = ENF_dataset[ENF_id]
-			## For each value in ENF vector to asssign <x,y>
-			for i in range(0, len(ls_dataset)):
-				xdata.append(i)
-				ydata.append( float(ls_dataset[i]) )
+	def merkle_root(dict_transactions):
+		## build a Merkle tree of dict_transactions 
+		tx_HMT = MerkleTree(dict_transactions, FuncUtil.hashfunc_sha256)
 
-			## plit line for ENF_id
-			plt.plot(xdata, ydata, lw=2.0, color=ls_color[ENF_id])
-
-			## add ENF_id for legend label
-			leg_label.append("ENF-{}".format(ENF_id))
-
-		## set x and y label text
-		plt.xlabel('Time slot', fontsize=font_size)
-		plt.ylabel('ENF (HZ)', fontsize=font_size) 
-		# plt.ylim(59.995, 60.005)
-
-		## plot legend given legend label 
-		if(legend_label == ''):
-			plt.legend(leg_label, loc='best', fontsize=font_size)
+		## calculate merkle tree root hash
+		if(len(tx_HMT)==0):
+			merkle_root_hash = 0
 		else:
-			plt.legend(legend_label, loc='best', fontsize=font_size)
-		
-		## show figure if is_show is enabled
-		if( is_show ):
-			plt.show()
-
-		## save figure if is_savefig is enabled
-		if( is_savefig ):
-			figname = os.path.splitext(datafile)[0] +'.png'
-			plt.savefig(figname)
-		plt.close()
+			tree_struct=merkle_jsonify(tx_HMT)
+			json_tree = TypesUtil.string_to_json(tree_struct)
+			merkle_root_hash = json_tree['name']
+		return merkle_root_hash

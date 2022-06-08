@@ -54,7 +54,8 @@ def build_tx(tx_json):
 	sign_data = mytransaction.sign('samuelxu999')
 
 	# verify transaction
-	dict_transaction = Transaction.get_dict(mytransaction.sender_address, 
+	dict_transaction = Transaction.get_dict(mytransaction.hash,
+											mytransaction.sender_address, 
 	                                        mytransaction.recipient_address,
 	                                        mytransaction.time_stamp,
 	                                        mytransaction.value)
@@ -93,28 +94,15 @@ def validator_status():
 	response = myblockchain.get_status()
 	return jsonify(response), 200
 
+# ================================ Transaction RPC handler==================================
 @app.route('/test/transaction/query', methods=['GET'])
 def query_transaction():
-	# parse data from request.data
+	## parse data from request.data
 	req_data=TypesUtil.bytes_to_string(request.data)
 
-	tx_json=json.loads(req_data)
+	tx_hash=json.loads(req_data)
 
-	if(tx_json=='{}'):
-		abort(401, {'error': 'No transaction data'})
-
-	tx_valid = True
-	# logger.info( "tx_data: {}".format(tx_json))
-	tx_value = TypesUtil.json_to_string(tx_json)
-
-	# -------------- duplicate tx_data in block, discard it ------------------
-	response = {}
-	myblockchain.load_chain()
-	for block in myblockchain.chain:
-		for tx in block['transactions']:
-			if(tx_value==tx['value']):
-				response = tx['value']
-				break
+	response = myblockchain.get_tx(tx_hash)
 
 	return jsonify(response), 200
 
@@ -138,8 +126,8 @@ def commit_transaction():
 			break
 
 	# -------------- duplicate tx_data in block, discard it ------------------
-	myblockchain.load_chain()
-	for block in myblockchain.chain:
+	json_blocks = myblockchain.load_chain()
+	for block in json_blocks:
 		for tx in block['transactions']:
 			if(tx_value==tx['value']):
 				tx_valid = False
@@ -257,13 +245,14 @@ def get_enf_proofs():
 
 @app.route('/test/chain/get', methods=['GET'])
 def full_chain():
-	myblockchain.load_chain()
+	json_blocks = myblockchain.load_chain()
 	response = {
-	    'chain': myblockchain.chain,
-	    'length': len(myblockchain.chain),
+	    'chain': json_blocks,
+	    'length': len(json_blocks),
 	}
 	return jsonify(response), 200
 
+## ================================ Mining RPC handler==================================
 @app.route('/test/chain/checkhead', methods=['GET'])
 def check_head():
 	myblockchain.fix_processed_head()
@@ -297,6 +286,7 @@ def mine_block():
 	
 	return jsonify(response), 200
 
+## ================================ Node RPC handler==================================
 @app.route('/test/p2p/neighbors', methods=['GET'])
 def p2p_neighbors():
 	neighbors = my_p2p.get_neighbors()
@@ -353,6 +343,18 @@ def remove_node():
 	myrandshare.peer_nodes.load_ByAddress()
 	return jsonify({'remove peer node': json_node['address']}), 201
 
+## ================================ Block RPC handler==================================
+@app.route('/test/block/query', methods=['GET'])
+def query_block():
+	# parse data from request.data
+	req_data=TypesUtil.bytes_to_string(request.data)
+
+	block_hash=json.loads(req_data)
+
+	response = myblockchain.get_block(block_hash)
+
+	return jsonify(response), 200
+
 @app.route('/test/block/verify', methods=['POST'])
 def verify_block():
 	# parse data from request.data
@@ -369,6 +371,7 @@ def verify_block():
 
 	return jsonify({'verify_block': verify_result}), 201
 
+## ================================ Vote RPC handler==================================
 @app.route('/test/block/vote', methods=['GET'])
 def vote_block():
 	json_block = myblockchain.processed_head
@@ -508,40 +511,7 @@ def disp_randomshare(json_shares):
 		for share_proof in share_proofs:
 			logger.info('    {}'.format(share_proof))
 
-def define_and_get_arguments(args=sys.argv[1:]):
-	parser = ArgumentParser(description="Run microchain websocket server.")
-
-	parser.add_argument("--test_func", type=int, default=0, 
-						help="Execute test function: 0-run_validator, \
-													1-new_account(), \
-													2-static_node()")
-
-	parser.add_argument('-p', '--port', default=8180, type=int, 
-						help="port to listen on.")
-	parser.add_argument('-rp', '--rpc_port', default=31180, type=int, 
-							help="rpc_port to listen on.")
-	parser.add_argument('--blockepoch', default=2, type=int, 
-						help="Block proposal round epoch size.")
-	parser.add_argument('--pauseepoch', default=2, type=int, 
-						help="Checkpoint epoch size for pending consensus and synchronization.")
-	parser.add_argument('--phasedelay', default=3, type=int, 
-						help="Delay time between operations of consensus protocol.")
-	parser.add_argument("--debug", action="store_true", 
-						help="if set, debug model will be used.")
-	parser.add_argument("--threaded", action="store_true", 
-						help="if set, support threading request.")
-	parser.add_argument("--firstnode", action="store_true", 
-						help="if set, bootstrap as first node of network.")
-	parser.add_argument("--bootstrapnode", default='128.226.88.210:31180', type=str, 
-						help="bootstrap node address format[ip:port] to join the network.")
-	parser.add_argument('--save_state', default=600, type=int, 
-							help="frequency for save_state_regularly.")
-	parser.add_argument('--refresh_neighbors', default=600, type=int, 
-							help="frequency for refresh_neighbors_regularly.")
-	args = parser.parse_args()
-
-	return args
-
+## ================================ Private functions ==================================
 def new_account():
 	## Instantiate the Wallet
 	mywallet = Wallet()
@@ -588,6 +558,39 @@ def static_node():
 	    json_node = node
 	    print(json_node['node_name'] + '    ' + json_node['node_address'] + '    ' + json_node['node_url'])	
 
+def define_and_get_arguments(args=sys.argv[1:]):
+	parser = ArgumentParser(description="Run microchain websocket server.")
+
+	parser.add_argument("--test_func", type=int, default=0, 
+						help="Execute test function: 0-run_validator, \
+													1-new_account(), \
+													2-static_node()")
+
+	parser.add_argument('-p', '--port', default=8180, type=int, 
+						help="port to listen on.")
+	parser.add_argument('-rp', '--rpc_port', default=31180, type=int, 
+							help="rpc_port to listen on.")
+	parser.add_argument('--blockepoch', default=2, type=int, 
+						help="Block proposal round epoch size.")
+	parser.add_argument('--pauseepoch', default=2, type=int, 
+						help="Checkpoint epoch size for pending consensus and synchronization.")
+	parser.add_argument('--phasedelay', default=3, type=int, 
+						help="Delay time between operations of consensus protocol.")
+	parser.add_argument("--debug", action="store_true", 
+						help="if set, debug model will be used.")
+	parser.add_argument("--threaded", action="store_true", 
+						help="if set, support threading request.")
+	parser.add_argument("--firstnode", action="store_true", 
+						help="if set, bootstrap as first node of network.")
+	parser.add_argument("--bootstrapnode", default='128.226.88.210:31180', type=str, 
+						help="bootstrap node address format[ip:port] to join the network.")
+	parser.add_argument('--save_state', default=600, type=int, 
+							help="frequency for save_state_regularly.")
+	parser.add_argument('--refresh_neighbors', default=600, type=int, 
+							help="frequency for refresh_neighbors_regularly.")
+	args = parser.parse_args()
+
+	return args
 
 if __name__ == '__main__':
 	# FORMAT = "%(asctime)s %(levelname)s %(filename)s(l:%(lineno)d) - %(message)s"
@@ -628,7 +631,6 @@ if __name__ == '__main__':
 								pause_epoch=args.pauseepoch,
 								phase_delay=args.phasedelay,
 								frequency_peers=args.refresh_neighbors)
-		myblockchain.load_chain()
 
 		myblockchain.print_config()
 

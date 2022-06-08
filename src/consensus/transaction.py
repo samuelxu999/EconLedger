@@ -24,11 +24,20 @@ class Transaction(object):
         self.time_stamp = time_stamp
         self.value = value
 
+        json_tx = {'sender_address': self.sender_address,
+                'recipient_address': self.recipient_address,
+                'time_stamp': self.time_stamp,
+                'value': self.value }
+        
+        ## calculate hash of transaction 
+        self.hash = TypesUtil.hash_json(json_tx)
+
     def to_dict(self):
         """
         Output dict transaction data structure. 
         """
         order_dict = OrderedDict()
+        order_dict['hash'] = self.hash
         order_dict['sender_address'] = self.sender_address
         order_dict['recipient_address'] = self.recipient_address
         order_dict['time_stamp'] = self.time_stamp
@@ -39,7 +48,8 @@ class Transaction(object):
         """
         Output dict transaction data structure. 
         """
-        return {'sender_address': self.sender_address,
+        return {'hash': self.hash,
+                'sender_address': self.sender_address,
                 'recipient_address': self.recipient_address,
                 'time_stamp': self.time_stamp,
                 'value': self.value }
@@ -61,11 +71,12 @@ class Transaction(object):
         return sign_value
 
     @staticmethod
-    def get_dict(sender_address, recipient_address, time_stamp, value):
+    def get_dict(tx_hash, sender_address, recipient_address, time_stamp, value):
         '''
         build dict transaction data structure given parameter. 
         '''
         order_dict = OrderedDict()
+        order_dict['hash'] = tx_hash
         order_dict['sender_address'] = sender_address
         order_dict['recipient_address'] = recipient_address
         order_dict['time_stamp'] = time_stamp
@@ -73,11 +84,12 @@ class Transaction(object):
         return order_dict
 
     @staticmethod
-    def get_json(sender_address, recipient_address, time_stamp, value):
+    def get_json(tx_hash, sender_address, recipient_address, time_stamp, value):
         '''
         build dict transaction data structure given parameter. 
         '''
-        return {'sender_address': sender_address,
+        return {'hash': tx_hash,
+                'sender_address': sender_address,
                 'recipient_address': recipient_address,
                 'time_stamp': time_stamp,
                 'value': value}
@@ -101,7 +113,7 @@ class Transaction(object):
     @staticmethod
     def json_to_dict(list_transactions):
         # Need to make sure that the dictionary is ordered. Otherwise we'll get a different hash
-        transaction_elements = ['sender_address', 'recipient_address', 'time_stamp', 'value', 'signature']
+        transaction_elements = ['hash', 'sender_address', 'recipient_address', 'time_stamp', 'value', 'signature']
         dict_transactions = [OrderedDict((k, transaction[k]) for k in transaction_elements) 
                         for transaction in list_transactions]
         return dict_transactions

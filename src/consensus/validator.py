@@ -44,12 +44,12 @@ class Validator(object):
 	self.node_id: 						GUID 
 	self.consensus: 					Consensus algorithm
 	self.chain_db: 						local chain database adapter
+	self.tx_db:							local tx database adapter
 	self.wallet: 						wallet account management
 	self.peer_nodes: 					peer nodes management 
 
 	self.transactions: 					local transaction pool
 	self.enf_proofs: 					local enf_proof pool
-	self.chain: 						local chain data buffer
 	self.block_dependencies: 			used to save blocks need for dependency
 	self.vote_dependencies: 			used to save pending vote need for dependency
 	self.processed_head: 				the latest processed descendant of the highest justified checkpoint
@@ -86,6 +86,10 @@ class Validator(object):
 		self.chain_db = DataManager(CHAIN_DATA_DIR, BLOCKCHAIN_DATA)
 		self.chain_db.create_table(CHAIN_TABLE)
 
+		## New database manager to manage tx data
+		self.tx_db = DataManager(CHAIN_DATA_DIR, TX_DATA)
+		self.tx_db.create_tx_table(TX_TABLE)
+
 		## Create genesis block
 		genesis_block = Block()
 		json_data = genesis_block.to_json()
@@ -95,9 +99,6 @@ class Validator(object):
 			#add genesis_block as 2-finalized
 			self.add_block(json_data, 2)
 		
-		## new chain buffer
-		self.chain = []
-
 		## new local tx and enf_proof pool
 		self.transactions = []
 		self.enf_proofs = []                           
@@ -293,10 +294,11 @@ class Validator(object):
 			# ============= Choose a message from buffer and process it ==================
 			msg_data = self.msg_buf[0]
 			if(msg_data[0]==1):
-				self.add_block(msg_data[1], msg_data[2])
-			
-			if(msg_data[0]==2):
+				self.add_block(msg_data[1], msg_data[2])			
+			elif(msg_data[0]==2):
 				VoteCheckPoint.add_voter_data(msg_data[1], msg_data[2])
+			else:
+				self.add_tx(msg_data[1])
 			
 			self.msg_buf.remove(msg_data)
 
@@ -441,6 +443,42 @@ class Validator(object):
 																				self.highest_finalized_checkpoint['height']) )
 
 
+	## ------------------------------ tx operation ------------------------
+	def add_tx(self, json_tx):
+		'''
+		Database operation: add verified tx to local ledger database
+		'''
+		# if tx not existed, add tx to database
+		if( self.tx_db.select_tx(TX_TABLE, json_tx['hash'])==[] ):
+			self.tx_db.insert_tx(TX_TABLE,	json_tx['hash'], 
+								TypesUtil.json_to_string(json_tx))
+
+	def commit_tx(self, tx_hash, block_hash):
+		'''
+		Database operation: update block_hash to fix tx on local tx database.
+		'''
+		self.tx_db.update_tx(TX_TABLE, tx_hash, block_hash)
+
+	def get_tx(self, tx_hash,  tx_num=10):
+		'''
+		Database operation: select a tx as json given tx_hash
+		'''
+		ret_tx = []
+		if(tx_hash==''):
+			list_tx = self.tx_db.select_tx(TX_TABLE)
+			txs_size = len(list_tx)
+			if(txs_size<tx_num):
+				ret_tx = list_tx
+			else:
+				ret_tx = list_tx[txs_size-tx_num:]
+		else:
+			list_tx = self.tx_db.select_tx(TX_TABLE, tx_hash)
+			if(len(list_tx)!=0):
+				ret_tx = TypesUtil.string_to_json(list_tx[0][2])
+
+		return ret_tx
+
+	## ------------------------------ block operation ------------------------
 	def add_block(self, json_block, status=0):
 		'''
 		Database operation: add verified block to local chain data
@@ -460,9 +498,14 @@ class Validator(object):
 		'''
 		Database operation: select a block as json given block_hash
 		'''
-		str_block = self.chain_db.select_block(CHAIN_TABLE, block_hash)[0][2]
-		return TypesUtil.string_to_json(str_block)
+		ls_block = self.chain_db.select_block(CHAIN_TABLE, block_hash)
+		if(len(ls_block)!=0):
+			str_block = ls_block[-1][2]
+			return TypesUtil.string_to_json(str_block)
+		else:
+			return {}
 
+	## ------------------------------ node operation ------------------------
 	def get_node(self, node_address):
 		'''
 		Buffer operation: select a node from peer_nodes buffer given node address
@@ -481,17 +524,25 @@ class Validator(object):
 		return json_node
 
 
-	def load_chain(self):
+	def load_chain(self, block_num=10):
 		'''
-		Database operation: Load chain data from local database
+		Database operation: Load latest block_num of chain data
 		'''
 		ls_chain=self.chain_db.select_block(CHAIN_TABLE)
-		self.chain = []
-		for block in ls_chain:
+		chain_size = len(ls_chain)
+
+		if(chain_size<block_num):
+			ret_chain = ls_chain
+		else:
+			ret_chain = ls_chain[chain_size-block_num:]
+		
+		json_blocks = []
+		for block in ret_chain:
 			json_data = TypesUtil.string_to_json(block[2])
-			if( json_data['hash'] not in self.chain):
+			if( json_data['hash'] not in json_blocks):
 				json_data['status']=block[3]
-				self.chain.append(json_data)
+				json_blocks.append(json_data)
+		return json_blocks
 
 	def save_chainInfo(self):
 		"""
@@ -551,9 +602,12 @@ class Validator(object):
 			@ transaction: transacton json data
 			@ return: True or False
 		"""
+		## define tx type to mark enf_proof tx 
+		is_enf_proof = False
 
 		## ====================== rebuild transaction ==========================
-		dict_transaction = Transaction.get_dict(json_transaction['sender_address'], 
+		dict_transaction = Transaction.get_dict(json_transaction['hash'],
+												json_transaction['sender_address'], 
 												json_transaction['recipient_address'],
 												json_transaction['time_stamp'],
 												json_transaction['value'])
@@ -573,25 +627,26 @@ class Validator(object):
 
 		## return if tx.verify() failed. 
 		if(not verify_result):
-			return False
+			return False, is_enf_proof
 		
 		## discard duplicated tx in general scenario
 		if(json_transaction in self.transactions):
-			return False
+			return False, is_enf_proof
 
 		## check if enf_proof type
 		if("swarm_hash" in json_transaction['value']):
 			## In current round, duplicated ENF proof from a validator will be discarded.
 			for json_tx in self.enf_proofs:
 				if(json_transaction['sender_address']==json_tx['sender_address']):
-					return False
+					return False, is_enf_proof
 			## append to local enf_proof pool.
 			self.enf_proofs.append(json_transaction)
+			is_enf_proof = True
 		else:
 			## append to local transactions pool.
 			self.transactions.append(json_transaction)
 		
-		return True
+		return True, is_enf_proof
 
 	def build_enf_tx(self):
 		"""
@@ -632,13 +687,23 @@ class Validator(object):
 		Args:
 			@ json_block: return mined block
 		"""
-		# remove committed transactions in head block
-		head_block = self.current_head
-		for transaction in head_block['transactions']:
-			if(transaction in self.transactions):
-				self.transactions.remove(transaction)
+		## ----- set head as last block and used for new block proposal process ----
+		last_block = self.processed_head
 
-		## set commit transactions based on COMMIT_TRANS
+		## Convert json last_block to Block object
+		parent_block = Block.json_to_block(last_block)
+
+		## ------------- remove committed transactions in head block -------------
+		head_block = self.current_head
+		pending_tx = []
+		for transaction in self.transactions:
+			## search pending txs.
+			if(transaction['hash'] not in head_block['transactions']):
+				pending_tx.append(transaction)
+		## only keep uncommitted txs.
+		self.transactions = copy.copy(pending_tx)
+
+		## ------ choose commit transactions based on COMMIT_TRANS ----------------
 		commit_transactions = []
 		if( len(self.transactions)<=COMMIT_TRANS ):
 			commit_transactions = copy.copy(self.transactions)
@@ -646,40 +711,32 @@ class Validator(object):
 		else:
 			commit_transactions = copy.copy(self.transactions[:COMMIT_TRANS])
 
-		## set head as last block and used for new block proposal process
-		last_block = self.processed_head
+		## --------- only save tx_hash to block['transactions'] -------------------
+		ls_tx_hash = []
+		for tx in commit_transactions:
+			ls_tx_hash.append(tx['hash'])
 
-		block_data = {'height': last_block['height'],
-					'previous_hash': last_block['previous_hash'],
-					'transactions': last_block['transactions'],
-					'merkle_root': last_block['merkle_root'],
-					'enf_proofs': last_block['enf_proofs'],
-					'nonce': last_block['nonce']}
+		## a) ---------- calculate merkle tree root hash of ls_tx_hash ------
+		merkle_root = FuncUtil.merkle_root(ls_tx_hash)
 
-		parent_block = Block.json_to_block(last_block)
-		sender = self.wallet.accounts[0]
-
-		## set committeed enf proof
+		## b) set committeed enf proof
 		commit_enf_proofs = copy.copy(self.enf_proofs)
 
-		## execute mining task and generate candidate block
+		## c) execute mining task and generate candidate block
+		sender = self.wallet.accounts[0]
 		if( POE.proof_of_enf(commit_enf_proofs, sender['address']) ):
-			new_block = Block(parent_block, commit_transactions, commit_enf_proofs, self.node_id)
+			new_block = Block(parent_block, merkle_root, 
+							ls_tx_hash, commit_enf_proofs, self.node_id)
 		else:
 			# generate empty block without transactions
 			new_block = Block(parent_block)	
 
 		json_block = new_block.to_json()
 
-		## add sender address and signature
-		if(self.wallet.accounts!=0):
-			# sender = self.wallet.accounts[0]
-			sign_data = new_block.sign(sender['private_key'], 'samuelxu999')
-			json_block['sender_address'] = sender['address']
-			json_block['signature'] = TypesUtil.string_to_hex(sign_data)
-		else:
-			json_block['sender_address'] = 'Null'
-			json_block['signature'] = 'Null'
+		## d) add sender address and signature
+		sign_data = new_block.sign(sender['private_key'], 'samuelxu999')
+		json_block['sender_address'] = sender['address']
+		json_block['signature'] = TypesUtil.string_to_hex(sign_data)
 
 		return json_block
 
@@ -716,23 +773,17 @@ class Validator(object):
 			return False
 
 		# b) verify if transactions list has the same merkel root hash as in block['merkle_root']
-		dict_transactions = Transaction.json_to_dict(current_block['transactions'])
+		ls_tx_hash = current_block['transactions']
 
-		# # build a Merkle tree for that list
-		tx_HMT = MerkleTree(dict_transactions, FuncUtil.hashfunc_sha256)
+		## calculate merkle tree root hash
+		merkle_root = FuncUtil.merkle_root(ls_tx_hash)
 
-		# calculate merkle tree root hash
-		if(len(tx_HMT)==0):
-			merkle_root = 0
-		else:
-			tree_struct=merkle_jsonify(tx_HMT)
-			json_tree = TypesUtil.string_to_json(tree_struct)
-			merkle_root = json_tree['name']
-
+		## verify if merkle_root is the same as block data
 		if(merkle_root!=current_block['merkle_root']):
 			logger.info("Transactions merkel tree root verify fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
 			return False
 
+		## c) ----------- verify enf_proof ---------------------------
 		if( not POE.proof_of_enf(current_block['enf_proofs'], current_block['sender_address']) ):
 			logger.info("PoE verify proof fail. Block: {}  sender: {}".format(current_block['hash'],current_block['sender_address']))
 			return False			
@@ -775,27 +826,17 @@ class Validator(object):
 			@ verify_result: True or False
 		'''
 		verify_result = True
-		for transaction_data in transactions:
-			#print(transaction_data)
-			# ====================== rebuild transaction ==========================
-			dict_transaction = Transaction.get_dict(transaction_data['sender_address'], 
-			                                    transaction_data['recipient_address'],
-			                                    transaction_data['time_stamp'],
-			                                    transaction_data['value'])
 
-			sign_str = TypesUtil.hex_to_string(transaction_data['signature'])
+		tx_pool = []
+		for tx in self.transactions:
+			tx_pool.append(tx['hash'])
 
-			# get node data from self.peer_nodes buffer
-			sender_node=self.get_node(transaction_data['sender_address'])
-
-			# ====================== verify transaction ==========================
-			if(sender_node!={}):
-			    sender_pk= sender_node['public_key']
-			    verify_result = Transaction.verify(sender_pk, sign_str, dict_transaction)
-			else:
+		## each tx_hash to check if it's valid in tx_pool
+		for tx_hash in transactions:
+			if(tx_hash not in tx_pool):
 				verify_result = False
-			if(not verify_result):
 				break
+
 		return verify_result
 
 	def get_parent(self, json_block):
@@ -879,7 +920,11 @@ class Validator(object):
 		'''
 
 		# ====================== verify transaction ==========================
-		verify_result = self.valid_transaction(json_tran)
+		verify_result, is_enf_proof = self.valid_transaction(json_tran)
+
+		## add valid tx to self.msg_buf
+		if( (True==verify_result) and (False==is_enf_proof) ):
+			self.msg_buf.append([0, json_tran])
 	
 		return verify_result
 
@@ -1124,10 +1169,15 @@ class Validator(object):
 		## 3) ---------- remove committed transactions in local txs pool ---------------
 		## a) all enf_proofs are only valid in current epoch, clear local enf_proof pool 
 		self.enf_proofs = []
+
 		## b) remove committed transactions in head block from local txs pool
-		for transaction in self.processed_head['transactions']:
-			if(transaction in self.transactions):
-				self.transactions.remove(transaction)
+		pending_tx = []
+		for transaction in self.transactions:
+			if(transaction['hash'] not in self.processed_head['transactions']):
+				pending_tx.append(transaction)
+				# self.transactions.remove(transaction)
+		self.transactions = copy.copy(pending_tx)
+
 		logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
 																	self.processed_head['height']) )
 		# 4) update chaininfo and save into local file

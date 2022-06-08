@@ -129,7 +129,8 @@ class TxsThread(threading.Thread):
 		sign_data = mytransaction.sign('samuelxu999')
 
 		# verify transaction
-		dict_transaction = Transaction.get_dict(mytransaction.sender_address, 
+		dict_transaction = Transaction.get_dict(mytransaction.hash,
+												mytransaction.sender_address, 
 		                                        mytransaction.recipient_address,
 		                                        mytransaction.time_stamp,
 		                                        mytransaction.value)
@@ -266,8 +267,12 @@ class ENFchain_RPC(object):
 		json_enf_proofs = json_response['enf_proofs']
 		return json_enf_proofs
 
-	def query_transaction(self, target_address, tx_json):
-		json_response=SrvAPI.GET('http://'+target_address+'/test/transaction/query', tx_json)
+	def query_transaction(self, target_address, tx_hash):
+		json_response=SrvAPI.GET('http://'+target_address+'/test/transaction/query', tx_hash)
+		return json_response
+
+	def query_block(self, target_address, block_hash):
+		json_response=SrvAPI.GET('http://'+target_address+'/test/block/query', block_hash)
 		return json_response
 
 	def start_enf_submit(self, target_address, isBroadcast=False):

@@ -30,65 +30,6 @@ TX_TIMEOUT = 15
 ENFchain_client = ENFchain_RPC(keystore="keystore", 
 								keystore_net="keystore_net")
 
-def set_peerNodes(target_name, op_status=0, isBroadcast=False):
-	#--------------------------------------- load static nodes -------------------------------------
-	static_nodes = StaticNodes()
-	static_nodes.load_node()
-
-	list_address = []
-	print('List loaded static nodes:')
-	for node in list(static_nodes.nodes):
-		#json_node = TypesUtil.string_to_json(node)
-		json_node = node
-		list_address.append(json_node['node_url'])
-		print(json_node['node_name'] + '    ' + json_node['node_address'] + '    ' + json_node['node_url'])
-
-	#print(list_address)
-
-	#-------------- localhost ----------------
-	target_node = static_nodes.get_node(target_name)
-
-	if( target_node=={}):
-		return
-
-	target_address = target_node['node_url']
-	# print(target_address)
-
-	# Instantiate the Wallet by using key_dir: keystore_net
-	mywallet = Wallet('keystore_net')
-
-	# load accounts
-	mywallet.load_accounts()
-
-	#list account address
-	#print(mywallet.list_address())
-	json_account = mywallet.get_account(target_node['node_address'])
-	#print(json_account)
-
-	# ---------------- add and remove peer node --------------------
-	json_node = {}
-	if(json_account!=None):
-		json_node['address'] = json_account['address']
-		json_node['public_key'] = json_account['public_key']
-		json_node['node_url'] = target_node['node_url']
-
-	if(op_status==1): 
-		if(not isBroadcast):  
-			ENFchain_client.add_node(target_address, json_node)
-		else:
-			ENFchain_client.add_node(list_address, json_node, True)
-	if(op_status==2):
-		if(not isBroadcast):
-			ENFchain_client.remove_node(target_address, json_node)
-		else:
-			ENFchain_client.remove_node(list_address, json_node, True)
-
-	# display peering nodes
-	json_response=ENFchain_client.get_nodes(target_address)
-	nodes = json_response['nodes']
-	logger.info('Peer nodes:')
-	for node in nodes:
-		logger.info(node)
 
 # ====================================== validator test ==================================
 def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUNDED_TIME):
@@ -425,8 +366,8 @@ def define_and_get_arguments(args=sys.argv[1:]):
 	parser.add_argument("--wait_interval", type=int, default=1, help="break time between step.")
 	parser.add_argument("--target_address", type=str, default="0.0.0.0:8180", 
 						help="Test target address - ip:port.")
-	parser.add_argument("--set_peer", type=str, default="", 
-						help="set peer node. name@op")
+	parser.add_argument("--data", type=str, default="", 
+						help="Input date for test.")
 	args = parser.parse_args(args=args)
 	return args
 
@@ -456,19 +397,12 @@ if __name__ == "__main__":
 
 	if(test_func == 0):
 		if(op_status == 1):
-			set_peer = args.set_peer
-			if(set_peer!=''):
-				name_op=set_peer.split('@')
-				# print(name_op[0], name_op[1])
-				# set_peerNodes('R2_pi4_4', 1, True)
-				set_peerNodes(name_op[0], int(name_op[1]), True)
-		elif(op_status == 2):
 			neighbors = ENFchain_client.get_neighbors(target_address)
 			logger.info(neighbors)
-		elif(op_status == 3):
+		elif(op_status == 2):
 			peers = ENFchain_client.get_peers(target_address)
 			logger.info(peers)
-		elif(op_status == 4):
+		elif(op_status == 3):
 			tasks = [ENFchain_client.get_peers_info(target_address)]
 			loop = asyncio.get_event_loop()
 			done, pending = loop.run_until_complete(asyncio.wait(tasks))
@@ -500,29 +434,36 @@ if __name__ == "__main__":
 			logger.info("{}: {}    {}".format(_item, _value[0], _value[1]))
 
 	elif(test_func == 2):
-		if(op_status == 1):
+		if(op_status == 10):
 			ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
-			# ENFchain_client.start_enf_submit(target_address)
-		elif(op_status == 10):
+		elif(op_status == 11):
 			# ENFchain_client.launch_ENF(samples_head, samples_size)
 			ENFchain_client.start_enf_submit(target_address, True)
-		elif(op_status == 2):
+		elif(op_status == 12):
 			ENFchain_client.start_mining(target_address, True)
-		elif(op_status == 3):
+		elif(op_status == 13):
 			ENFchain_client.check_head()
-		elif(op_status == 4):
+		elif(op_status == 14):
 			ENFchain_client.start_voting(target_address, True)
-		elif(op_status == 110):
+		elif(op_status == 200):
 			enf_proofs = ENFchain_client.get_enf_proofs(target_address)
 			logger.info(enf_proofs)
-		elif(op_status == 111):
+		elif(op_status == 201):
 			transactions = ENFchain_client.get_transactions(target_address)
 			logger.info(transactions)
-		elif(op_status == 12):
+		elif(op_status == 210):
+			tx_hash = args.data
+			transactions = ENFchain_client.query_transaction(target_address, tx_hash)
+			logger.info(transactions)
+		elif(op_status == 211):
+			block_hash = args.data
+			blocks = ENFchain_client.query_block(target_address, block_hash)
+			logger.info(blocks)
+		elif(op_status == 22):
 			disp_chaindata(target_address, True)
-		elif(op_status == 13):
+		elif(op_status == 23):
 			count_tx_size(target_address)
-		elif(op_status == 14):
+		elif(op_status == 24):
 			count_vote_size(target_address)
 		elif(op_status == 9):
 			ENFchain_client.run_consensus(target_address, True, True)
@@ -533,16 +474,6 @@ if __name__ == "__main__":
 			for _item, _value in json_checkpoints.items():
 				logger.info("{}: {}    {}".format(_item, _value[0], _value[1])) 
 	else:
-		# host_address='ceeebaa052718c0a00adb87de857ba63608260e9'
-		# cache_fetch_share(target_address)
-		# verify_share(host_address)
-		# cache_recovered_shares(target_address)
-		# recovered_shares(host_address)
-		# print(create_randshare(target_address))
-		# cache_vote_shares(target_address)
-		# print(verify_vote_shares())
-		# vote_randshare(target_address)
-
 		for x in range(test_run):
 			logger.info("Test run:{}".format(x+1))
 			Epoch_randomshare(target_address)
