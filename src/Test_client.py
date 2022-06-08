@@ -267,22 +267,6 @@ def disp_chaindata(target_address, isDisplay=False):
 		    for block in chain_data:
 		        logger.info("{}\n".format(block))
 
-def count_tx_size(target_address):
-	json_response = ENFchain_client.get_chain(target_address)
-	chain_data = json_response['chain']
-	chain_length = json_response['length']
-	logger.info('Chain length: {}'.format(chain_length))
-	for block in chain_data:
-		if(block['transactions']!=[]): 
-			blk_str = TypesUtil.json_to_string(block)  
-			logger.info('Block size: {} Bytes'.format(len( blk_str.encode('utf-8') ))) 
-			logger.info('transactions count: {}'.format(len( block['transactions'] )))  
-
-			tx=block['transactions'][0]
-			tx_str=TypesUtil.json_to_string(tx)
-			logger.info('Tx size: {} Bytes'.format(len( tx_str.encode('utf-8') )))
-			break
-
 def count_vote_size(target_address):
 	# get validators information from a validator.
 	validator_info = ENFchain_client.validator_getinfo(target_address, False)[0]
@@ -437,9 +421,11 @@ if __name__ == "__main__":
 		if(op_status == 10):
 			ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
 		elif(op_status == 101):
+			## build dummy json_tx for test.
 			json_tx={}
 			json_tx['name']='Samuel'
 			json_tx['age']=28
+			## call submit tx API
 			ret_msg = ENFchain_client.submit_transaction(target_address, json_tx)
 			logger.info(ret_msg)
 		elif(op_status == 11):
@@ -459,18 +445,24 @@ if __name__ == "__main__":
 			logger.info(transactions)
 		elif(op_status == 210):
 			tx_hash = args.data
-			transactions = ENFchain_client.query_transaction(target_address, tx_hash)
-			logger.info(transactions)
+			list_tx = ENFchain_client.query_transaction(target_address, tx_hash)
+			for tx in list_tx:
+				tx_size=len( tx[2].encode('utf-8'))
+				logger.info("{}, committed in block:{}, size:{}.\n".format(TypesUtil.string_to_json(tx[2]),
+																tx[3], tx_size))
 		elif(op_status == 211):
 			block_hash = args.data
-			blocks = ENFchain_client.query_block(target_address, block_hash)
-			logger.info(blocks)
+			json_block = ENFchain_client.query_block(target_address, block_hash)
+			if(json_block!={}):
+				block_size = len( TypesUtil.json_to_string(json_block).encode('utf-8'))
+				tx_count = len(json_block['transactions'])
+				enf_proof_count = len(json_block['enf_proofs'])
+				logger.info("{}, size:{}, tx_count:{}, enf_proof_count:{}".format(json_block, 
+														block_size, tx_count, enf_proof_count))
+		elif(op_status == 212):
+			count_vote_size(target_address)
 		elif(op_status == 22):
 			disp_chaindata(target_address, True)
-		elif(op_status == 23):
-			count_tx_size(target_address)
-		elif(op_status == 24):
-			count_vote_size(target_address)
 		elif(op_status == 9):
 			ENFchain_client.run_consensus(target_address, True, True)
 		elif(op_status == 90):

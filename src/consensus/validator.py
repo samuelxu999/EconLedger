@@ -297,6 +297,8 @@ class Validator(object):
 				self.add_block(msg_data[1], msg_data[2])			
 			elif(msg_data[0]==2):
 				VoteCheckPoint.add_voter_data(msg_data[1], msg_data[2])
+			elif(msg_data[0]==3):
+				self.commit_tx(msg_data[1], msg_data[2])
 			else:
 				self.add_tx(msg_data[1])
 			
@@ -464,17 +466,13 @@ class Validator(object):
 		Database operation: select a tx as json given tx_hash
 		'''
 		ret_tx = []
-		if(tx_hash==''):
-			list_tx = self.tx_db.select_tx(TX_TABLE)
-			txs_size = len(list_tx)
-			if(txs_size<tx_num):
-				ret_tx = list_tx
-			else:
-				ret_tx = list_tx[txs_size-tx_num:]
+
+		list_tx = self.tx_db.select_tx(TX_TABLE, tx_hash)
+		txs_size = len(list_tx)
+		if(txs_size<tx_num):
+			ret_tx = list_tx
 		else:
-			list_tx = self.tx_db.select_tx(TX_TABLE, tx_hash)
-			if(len(list_tx)!=0):
-				ret_tx = TypesUtil.string_to_json(list_tx[0][2])
+			ret_tx = list_tx[txs_size-tx_num:]
 
 		return ret_tx
 
@@ -1151,7 +1149,7 @@ class Validator(object):
 		3) remove committed transactions from local txs pool 
 		4) update chaininfo and save into local file
 		'''
-		# if( self.consensus==ConsensusType.PoS or self.consensus==ConsensusType.PoE ):
+		
 		## 1) if none of validator propose block, use empty block as header
 		if(self.processed_head == self.current_head):
 			#generate empty block
@@ -1167,10 +1165,14 @@ class Validator(object):
 			self.current_head = json_block
 			logger.info("Set current_head as emptyblock: {}".format(self.current_head))
 		
-		## 2) set processed_head as current_head
+		## 2) ---------------- set processed_head as current_head --------------------
 		self.processed_head = self.current_head
 
-		## 3) ---------- remove committed transactions in local txs pool ---------------
+		## 3) ------------ Add committed txs into msg buffer for furture update -------
+		for tx_hash in self.processed_head['transactions']:
+			self.msg_buf.append([3, tx_hash, self.processed_head['hash']])
+
+		## 4) ---------- remove committed transactions in local txs pool ---------------
 		## a) all enf_proofs are only valid in current epoch, clear local enf_proof pool 
 		self.enf_proofs = []
 
@@ -1179,13 +1181,13 @@ class Validator(object):
 		for transaction in self.transactions:
 			if(transaction['hash'] not in self.processed_head['transactions']):
 				pending_tx.append(transaction)
-				# self.transactions.remove(transaction)
 		self.transactions = copy.copy(pending_tx)
 
-		logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
-																	self.processed_head['height']) )
-		# 4) update chaininfo and save into local file
+		# 5) ----------------- update chaininfo and save into local file ---------
 		self.save_chainInfo()	
+
+		logger.info("Fix processed_head: {}    height: {}".format(self.processed_head['hash'],
+																self.processed_head['height']) )
 
 	def add_dependency(self, hash_value, json_data, op_type=0):
 		'''
