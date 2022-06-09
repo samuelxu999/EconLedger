@@ -13,6 +13,7 @@ import sys
 import time
 import logging
 import asyncio
+import random
 
 from network.wallet import Wallet
 from network.nodes import *
@@ -25,31 +26,34 @@ from randomness.randshare import RandShare
 
 logger = logging.getLogger(__name__)
 
-TX_TIMEOUT = 15
+TX_TIMEOUT = 30
 # ------------------------ Instantiate the ENFchain_RPC ----------------------------------
 ENFchain_client = ENFchain_RPC(keystore="keystore", 
 								keystore_net="keystore_net")
 
 
 # ====================================== validator test ==================================
-def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUNDED_TIME):
+def Epoch_validator(target_address, txs_count, tx_size, phase_delay=BOUNDED_TIME):
 	'''
 	This test network latency for one epoch life time:
 	'''
-	# Define ls_time_exec to save executing time to log
+	## Define ls_time_exec to save executing time to log
 	ls_time_exec=[]
 
-	# S1: send test transactions
+	## S0: send test transactions
+	ENFchain_client.launch_txs(txs_count, tx_size)
+
+	time.sleep(phase_delay)
+
+	## S1: commit enf proofs
 	start_time=time.time()
 	ENFchain_client.start_enf_submit(target_address, True)
-	head_pos = 0
-	# head_pos = ENFchain_client.launch_ENF(samples_head, samples_size)
 	exec_time=time.time()-start_time
 	ls_time_exec.append(format(exec_time*1000, '.3f'))
 
 	time.sleep(phase_delay)
 
-	# S2: start mining 
+	## S2: start mining 
 	start_time=time.time()   
 	ENFchain_client.start_mining(target_address, True)
 	exec_time=time.time()-start_time
@@ -57,7 +61,7 @@ def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUN
 
 	time.sleep(phase_delay)
 
-	# S3: fix head of epoch 
+	## S3: fix head of epoch 
 	start_time=time.time()   
 	ENFchain_client.check_head()
 	exec_time=time.time()-start_time
@@ -65,7 +69,7 @@ def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUN
 
 	time.sleep(phase_delay)
 
-	# S4: voting block to finalize chain
+	## S4: voting block to finalize chain
 	start_time=time.time() 
 	ENFchain_client.start_voting(target_address, True)
 	exec_time=time.time()-start_time
@@ -75,12 +79,10 @@ def Epoch_validator(target_address, samples_head, samples_size, phase_delay=BOUN
 
 	logger.info("txs: {}    mining: {}    fix_head: {}    vote: {}\n".format(ls_time_exec[0],
 										ls_time_exec[1], ls_time_exec[2], ls_time_exec[3]))
-	# Prepare log messgae
+	## Prepare log messgae
 	str_time_exec=" ".join(ls_time_exec)
-	# Save to *.log file
+	## Save to *.log file
 	FileUtil.save_testlog('test_results', 'exec_time.log', str_time_exec)
-
-	return head_pos
 
 def Epoch_randomshare(target_address, phase_delay=BOUNDED_TIME):
 	'''
@@ -297,29 +299,31 @@ def validator_getStatus():
 	logger.info("Non-syn node: {}".format(unconditional_nodes))
 
 ## evaluation on how long to commit tx on ledger.
-def commit_tx_evaluate(target_address, samples_head, samples_size):
+def commit_tx_evaluate(target_address, tx_thread, tx_size):
 	tx_time = 0.0
 
-	logger.info("launch ENF txs ...\n") 
-	head_pos = ENFchain_client.launch_ENF(samples_head, samples_size)
+	# logger.info("launch txs ...\n") 
+	# ENFchain_client.launch_txs(tx_thread, tx_size)
 
-	logger.info("get a tx in txs pool ...\n")
-	ls_txs = ENFchain_client.get_transactions(target_address)
+	## using random byte string for value of tx; value can be any bytes string.
+	json_tx={}
+	json_tx['data']=TypesUtil.string_to_hex(os.urandom(tx_size)) 
 
-	ENF_json = {}
-	if(len(ls_txs)>0):
-		str_value = ls_txs[0]['value']
-		ENF_json = TypesUtil.string_to_json(str_value)
-		# print(ENF_json)
+	## submit tx and get tx_hash
+	tx_hash = ENFchain_client.submit_transaction(target_address, json_tx)['submit_transaction']
+	commit_block =''
 
+	time.sleep(2)
 
-	logger.info("wait until tx committee...\n")
+	logger.info("wait until tx:{} is committed...\n".format(tx_hash))
 	start_time=time.time()
 	while(True):
-		query_ret=ENFchain_client.query_transaction(target_address, ENF_json)
+		list_tx = ENFchain_client.query_transaction(target_address, tx_hash)
 
-		if( query_ret!={} ):
+		if(list_tx[0][3]!='0'):
+			commit_block = list_tx[0][3]
 			break
+
 		time.sleep(0.5)
 		tx_time +=0.5
 		if(tx_time>=TX_TIMEOUT):
@@ -327,11 +331,8 @@ def commit_tx_evaluate(target_address, samples_head, samples_size):
 			break
 
 	exec_time=time.time()-start_time
-	logger.info("tx committed time: {:.3f}\n".format(exec_time, '.3f')) 
+	logger.info("tx is committed in block {}, time: {:.3f}\n".format(commit_block, exec_time, '.3f')) 
 	FileUtil.save_testlog('test_results', 'exec_tx_commit.log', format(exec_time, '.3f'))
-
-
-	return head_pos
 
 
 def define_and_get_arguments(args=sys.argv[1:]):
@@ -352,6 +353,8 @@ def define_and_get_arguments(args=sys.argv[1:]):
 						help="Test target address - ip:port.")
 	parser.add_argument("--data", type=str, default="", 
 						help="Input date for test.")
+	parser.add_argument("--tx_thread", type=int, default=1, help="Number of threads for txs.")
+	parser.add_argument("--tx_size", type=int, default=128, help="Size of each tx.")
 	args = parser.parse_args(args=args)
 	return args
 
@@ -374,6 +377,8 @@ if __name__ == "__main__":
 	test_run = args.test_round
 	samples_head = args.samples_head
 	samples_size = args.samples_size
+	tx_thread = args.tx_thread
+	tx_size = args.tx_size
 
 	## |------------------------ test function type -----------------------------|
 	## | 0:set peer nodes | 1:round test | 2:single step test | 3:randshare test |
@@ -401,16 +406,14 @@ if __name__ == "__main__":
 			for node in nodes:
 				logger.info(node)
 	elif(test_func == 1):
-		head_pos = samples_head
 		for x in range(test_run):
 			logger.info("Test run:{}".format(x+1))
 			if(op_status == 0):
-				next_pos = Epoch_validator(target_address, head_pos, samples_size, 5)
+				Epoch_validator(target_address, tx_thread, tx_size, 3)
 				time.sleep(wait_interval)
 			else:
-				next_pos = commit_tx_evaluate(target_address, head_pos, samples_size)
-				time.sleep(wait_interval*8)
-			head_pos = next_pos
+				commit_tx_evaluate(target_address, tx_thread, tx_thread)
+				# time.sleep(wait_interval*random.randint(1, 5))
 
 		# get checkpoint after execution
 		json_checkpoints = checkpoint_netInfo(target_address, False)
@@ -418,8 +421,8 @@ if __name__ == "__main__":
 			logger.info("{}: {}    {}".format(_item, _value[0], _value[1]))
 
 	elif(test_func == 2):
-		if(op_status == 10):
-			ENFchain_client.send_transaction(target_address, samples_head, samples_size, True)
+		if(op_status == 100):
+			ENFchain_client.send_enf_tx(target_address, samples_head, samples_size, True)
 		elif(op_status == 101):
 			## build dummy json_tx for test.
 			json_tx={}
@@ -428,8 +431,9 @@ if __name__ == "__main__":
 			## call submit tx API
 			ret_msg = ENFchain_client.submit_transaction(target_address, json_tx)
 			logger.info(ret_msg)
+		elif(op_status == 102):
+			ENFchain_client.launch_txs(tx_thread, tx_size)
 		elif(op_status == 11):
-			# ENFchain_client.launch_ENF(samples_head, samples_size)
 			ENFchain_client.start_enf_submit(target_address, True)
 		elif(op_status == 12):
 			ENFchain_client.start_mining(target_address, True)

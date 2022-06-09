@@ -105,46 +105,10 @@ class TxsThread(threading.Thread):
 	#The run() method is the entry point for a thread.
 	def run(self):
 		## set parameters based on argv
-		tx_sender = self.argv[0]
-		mypeer_nodes = self.argv[1]
-		head_pos = self.argv[2]
-		samples_size = self.argv[3]
+		node_url = self.argv[0]
+		json_tx = self.argv[1]
 
-		sender_address = tx_sender['address']
-		sender_private_key = tx_sender['private_key']
-		## set recipient_address as default value: 0
-		recipient_address = '0'
-		time_stamp = time.time()
-
-		## value comes from hash value to indicate address that ENF samples are saved on swarm network.
-		json_value={}
-		json_value['sender_address'] = sender_address
-		json_value['swarm_hash'] = swarm_utils.getSwarmhash(sender_address, head_pos, samples_size)
-		## convert json_value to string to ensure consistency in tx verification.
-		str_value = TypesUtil.json_to_string(json_value)
-
-		mytransaction = Transaction(sender_address, sender_private_key, recipient_address, time_stamp, str_value)
-
-		# sign transaction
-		sign_data = mytransaction.sign('samuelxu999')
-
-		# verify transaction
-		dict_transaction = Transaction.get_dict(mytransaction.hash,
-												mytransaction.sender_address, 
-		                                        mytransaction.recipient_address,
-		                                        mytransaction.time_stamp,
-		                                        mytransaction.value)
-
-		## --------------------- send transaction --------------------------------------
-		transaction_json = mytransaction.to_json()
-		transaction_json['signature']=TypesUtil.string_to_hex(sign_data)
-
-		node_info = mypeer_nodes.load_ByAddress(sender_address)
-		json_nodes = TypesUtil.string_to_json(list(mypeer_nodes.get_nodelist())[0])
-
-		## trigger broadcast_tx on tx_sender
-		SrvAPI.POST('http://'+json_nodes['node_url']+'/test/transaction/broadcast', 
-								transaction_json)
+		SrvAPI.POST('http://'+node_url+'/test/transaction/submit', json_tx)
 
 ## --------------------------------- ENFchain_RPC ------------------------------------------
 class ENFchain_RPC(object):
@@ -193,18 +157,28 @@ class ENFchain_RPC(object):
 				info_list.append(json_response)
 		return info_list
 
-	def launch_ENF(self, samples_head, samples_size):
+	def launch_txs(self, thread_num, tx_size):
 		## Instantiate mypeer_nodes using deepcopy of self.peer_nodes
 		mypeer_nodes = copy.deepcopy(self.peer_nodes)
+		list_nodes = list(mypeer_nodes.get_nodelist())
+		len_nodes = len(list_nodes)
 
-		# Create thread pool
+		## Create thread pool
 		threads_pool = []
 
-		## 1) for each account to send ENF samples
-		head_pos = samples_head
-		for sender in self.wallet_net.accounts:
+		## 1) build tx_thread for each task
+		for idx in range(thread_num):
+			## random choose a peer node. 
+			node_idx = random.randint(0,len_nodes-1)
+			node_url = TypesUtil.string_to_json(list_nodes[node_idx])['node_url']
+
+			## using random byte string for value of tx; value can be any bytes string.
+			json_tx={}
+			# json_tx['id']= TypesUtil.string_to_json(list_nodes[node_idx])['address']
+			json_tx['data']=TypesUtil.string_to_hex(os.urandom(tx_size)) 
+
 			## Create new threads for tx
-			p_thread = TxsThread( [sender, mypeer_nodes, head_pos, samples_size] )
+			p_thread = TxsThread( [node_url, json_tx] )
 
 			## append to threads pool
 			threads_pool.append(p_thread)
@@ -212,19 +186,13 @@ class ENFchain_RPC(object):
 			## The start() method starts a thread by calling the run method.
 			p_thread.start()
 
-			## move sample head to next section
-			head_pos+=samples_size
-		
-		# 2) The join() waits for all threads to terminate.
+		## 2) The join() waits for all threads to terminate.
 		for p_thread in threads_pool:
 			p_thread.join()
 
-		logger.info('launch ENF samples, current_pos: {}    next_pos: {}'.format(samples_head, head_pos))
+		logger.info('launch txs, number:{}, size: {}'.format(thread_num, tx_size))
 
-		## return updated head_pos for next epoch 
-		return head_pos
-
-	def send_transaction(self, target_address, samples_head, samples_size, isBroadcast=False):
+	def send_enf_tx(self, target_address, samples_head, samples_size, isBroadcast=False):
 		##----------------- build test transaction --------------------
 		sender = self.wallet.accounts[0]
 		sender_address = sender['address']

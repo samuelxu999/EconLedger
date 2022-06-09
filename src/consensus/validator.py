@@ -461,9 +461,9 @@ class Validator(object):
 		'''
 		self.tx_db.update_tx(TX_TABLE, tx_hash, block_hash)
 
-	def get_tx(self, tx_hash,  tx_num=10):
+	def query_tx(self, tx_hash,  tx_num=10):
 		'''
-		Database operation: select a tx as json given tx_hash
+		Query operation: select a tx as json given tx_hash
 		'''
 		ret_tx = []
 
@@ -500,6 +500,18 @@ class Validator(object):
 		if(len(ls_block)!=0):
 			str_block = ls_block[-1][2]
 			return TypesUtil.string_to_json(str_block)
+		else:
+			return {}
+
+	def query_block(self, block_hash):
+		'''
+		Query operation: select a block with status as json given block_hash
+		'''
+		ls_block = self.chain_db.select_block(CHAIN_TABLE, block_hash)
+		if(len(ls_block)!=0):
+			json_block = TypesUtil.string_to_json(ls_block[-1][2])
+			json_block['status'] = ls_block[-1][3]
+			return json_block
 		else:
 			return {}
 

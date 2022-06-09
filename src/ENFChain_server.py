@@ -99,7 +99,7 @@ def query_transaction():
 
 	tx_hash=json.loads(req_data)
 
-	response = myblockchain.get_tx(tx_hash)
+	response = myblockchain.query_tx(tx_hash)
 
 	return jsonify(response), 200
 
@@ -330,7 +330,7 @@ def query_block():
 
 	block_hash=json.loads(req_data)
 
-	response = myblockchain.get_block(block_hash)
+	response = myblockchain.query_block(block_hash)
 
 	return jsonify(response), 200
 
