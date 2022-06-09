@@ -188,22 +188,22 @@ def checkpoint_netInfo(target_address, isDisplay=False):
 	justifized_count = {}
 	processed_count = {}
 
-	# Calculate all checkpoints count
+	## -------------  Calculate all checkpoints count -------------------
 	for validator in validator_info:
 		# Calculate finalized checkpoint count
-		if validator['highest_finalized_checkpoint']['hash'] not in fininalized_count:
-			fininalized_count[validator['highest_finalized_checkpoint']['hash']] = 0
-		fininalized_count[validator['highest_finalized_checkpoint']['hash']] += 1
+		if validator['highest_finalized_checkpoint'] not in fininalized_count:
+			fininalized_count[validator['highest_finalized_checkpoint']] = 0
+		fininalized_count[validator['highest_finalized_checkpoint']] += 1
 		
 		# Calculate justified checkpoint count
-		if validator['highest_justified_checkpoint']['hash'] not in justifized_count:
-			justifized_count[validator['highest_justified_checkpoint']['hash']] = 0
-		justifized_count[validator['highest_justified_checkpoint']['hash']] += 1
+		if validator['highest_justified_checkpoint'] not in justifized_count:
+			justifized_count[validator['highest_justified_checkpoint']] = 0
+		justifized_count[validator['highest_justified_checkpoint']] += 1
 
 		# Calculate processed checkpoint count
-		if validator['processed_head']['hash'] not in processed_count:
-			processed_count[validator['processed_head']['hash']] = 0
-		processed_count[validator['processed_head']['hash']] += 1
+		if validator['processed_head'] not in processed_count:
+			processed_count[validator['processed_head']] = 0
+		processed_count[validator['processed_head']] += 1
 
 	if(isDisplay):
 		logger.info("")
@@ -211,7 +211,7 @@ def checkpoint_netInfo(target_address, isDisplay=False):
 		logger.info("Justified checkpoints: {}\n".format(justifized_count))
 		logger.info("Processed checkpoints: {}\n".format(processed_count))
 
-	# search finalized checkpoint with maximum count
+	## -------------- search finalized checkpoint with maximum count -------------
 	checkpoint = ''
 	max_acount = 0
 	for _item, _value in fininalized_count.items():
@@ -223,7 +223,7 @@ def checkpoint_netInfo(target_address, isDisplay=False):
 		logger.info("Finalized checkpoint: {}    count: {}\n".format(finalized_checkpoint[0],
 															   finalized_checkpoint[1]))
 
-	# search finalized checkpoint with maximum count
+	## --------------- search finalized checkpoint with maximum count -------------
 	checkpoint = ''
 	max_acount = 0
 	for _item, _value in justifized_count.items():
@@ -235,7 +235,7 @@ def checkpoint_netInfo(target_address, isDisplay=False):
 		logger.info("Justified checkpoint: {}    count: {}\n".format(justified_checkpoint[0],
 															   justified_checkpoint[1]))
 
-	# search finalized checkpoint with maximum count
+	## -----------------search finalized checkpoint with maximum count -------------
 	checkpoint = ''
 	max_acount = 0
 	for _item, _value in processed_count.items():
@@ -247,6 +247,7 @@ def checkpoint_netInfo(target_address, isDisplay=False):
 		logger.info("Processed checkpoint: {}    count: {}\n".format(processed_checkpoint[0],
 															   processed_checkpoint[1]))
 
+	## build json date for return.
 	json_checkpoints={}
 	json_checkpoints['finalized_checkpoint'] = finalized_checkpoint
 	json_checkpoints['justified_checkpoint'] = justified_checkpoint

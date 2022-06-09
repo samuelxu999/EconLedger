@@ -592,9 +592,9 @@ class Validator(object):
 		validator_info = {}
 		validator_info['node_id'] = self.node_id
 		validator_info['committee_size'] = self.committee_size
-		validator_info['processed_head'] = self.processed_head
-		validator_info['highest_justified_checkpoint'] = self.highest_justified_checkpoint
-		validator_info['highest_finalized_checkpoint'] = self.highest_finalized_checkpoint		
+		validator_info['processed_head'] = self.processed_head['hash']
+		validator_info['highest_justified_checkpoint'] = self.highest_justified_checkpoint['hash']
+		validator_info['highest_finalized_checkpoint'] = self.highest_finalized_checkpoint['hash']		
 		validator_info['vote_count'] = self.vote_count
 
 		return validator_info
