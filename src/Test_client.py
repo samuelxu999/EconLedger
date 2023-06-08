@@ -264,11 +264,11 @@ def disp_chaindata(target_address, isDisplay=False):
 	if( isDisplay ):
 		# only list latest 10 blocks
 		if(chain_length>10):
-		    for block in chain_data[-10:]:
-		        logger.info("{}\n".format(block))
+			for block in chain_data[-10:]:
+				logger.info("{}\n".format(block))
 		else:
-		    for block in chain_data:
-		        logger.info("{}\n".format(block))
+			for block in chain_data:
+				logger.info("{}\n".format(block))
 
 def count_vote_size(target_address):
 	# get validators information from a validator.

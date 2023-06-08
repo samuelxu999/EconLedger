@@ -67,3 +67,7 @@ Startup container and run services in container.
 Execute './service_run.sh stop --container_name' can stop running container
 
 Execute './service_run.sh show --container_name' can list all running container. Similiar to 'docker ps'.
+
+## cluster_exec.sh
+
+Run `./cluster_exec.sh` to learn usage. This script can be used to start, show, stop and clean 4 econledger nodes (containers) on the server along with a boot-strap node. They can be used as a test demo network.
