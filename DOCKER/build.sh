@@ -31,8 +31,8 @@ cp -r $src_folder/rpcudp $app_folder/
 ## copy swarm_server.json 
 cp $config_folder/swarm_server.json $app_folder/
 
-## copy data
-cp -r $src_folder/data $app_folder/
+# ## copy data
+# cp -r $src_folder/data $app_folder/
 
 ## copy requirements.txt 
 cp ../requirements.txt ./

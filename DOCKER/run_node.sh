@@ -31,10 +31,14 @@ elif [ "start" == "$OPERATION" ] ; then
 		echo "Use default container name: $CONTAINER_NAME"
 	fi
 
+	## copy data to local and then mount it into /app
+	cp -r ../src/data ./
+
 	docker run -d -it --rm --network=host \
 		--privileged=true \
 		-v /etc/localtime:/etc/localtime:ro \
 		-v $CONTAINER_NAME:/home/docker/app \
+		-v $(pwd)/data:/home/docker/app/data \
 		--name=$CONTAINER_NAME $IMAGE_NAME /bin/bash
 
 # Stop container		

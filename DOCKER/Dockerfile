@@ -11,8 +11,7 @@ RUN apt-get update && \
 	apt-get install -y \
     build-essential libssl-dev libffi-dev \
 	libxml2-dev libxslt1-dev libjpeg-dev zlib1g-dev \
-	python3 python-dev python3-dev \
-	python-pip \
+	python3 python3-dev python3-pip \
     cmake \
     git \
     wget \
