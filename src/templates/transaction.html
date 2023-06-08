@@ -1,0 +1,55 @@
+<!-- extended from base template -->
+{% extends 'base.html' %}
+
+{% block content %}
+   <h1>{% block title %} Transaction Information {% endblock %}</h1>
+   <form method="post">
+      <div>
+         <label for="transaction-search">Search the transaction hash:</label>
+         <input type="text" id="transaction-search" name="tx_hash" value ="{{ request.form['tx_hash'] }}">
+         <button type='submit'>Search</button>
+      </div>
+   </form>
+   <div>
+      {% if  posts[0]!='NULL' %}
+         <h3>Basic Information</h3>
+         <table>
+            <tbody>
+               <tr>
+                  <th>Transaction Hash</th><td>{{ posts[0] }}</td>
+               </tr>
+               <tr>
+                  <th>URL Address</th><td>{{ posts[1] }}</td>
+               </tr>
+               {% if  posts[2]!=0 %}
+                  <tr>
+                     <th>Committed Block</th><td>{{ posts[3][0] }}</td>
+                  </tr>
+               {% endif %}
+            </tbody>
+         </table>
+
+         {% if  posts[2]!=0 %}
+            <h3>Transaction Data</h3>
+            <table width="800">
+               <tr>
+                  <th>Sender Account</th><td>{{ posts[3][1]['sender_address'] }}</td>
+               </tr>
+               <tr>
+                  <th>Recipient Account</th><td>{{ posts[3][1]['recipient_address'] }}</td>
+               </tr>
+               <tr>
+                  <th>Time Stamp</th><td>{{ posts[3][1]['time_stamp'] }}</td>
+               </tr>
+               <tr>
+                  <th>Value</th><td>{{ posts[3][1]['value'] }}</td>
+               </tr>
+               <tr>
+                  <th>Signature</th><td>{{ posts[3][1]['signature'] }}</td>
+               </tr>
+            </table>
+         {% endif %}
+
+      {% endif %}
+   </div>
+{% endblock %}

@@ -1,0 +1,29 @@
+<!-- extended from base template -->
+{% extends 'base.html' %}
+
+{% block content %}
+   <h1>{% block title %} Welcome to Econledger Dashboard {% endblock %}</h1>
+   <div>
+      <h3>Total nodes: {{posts[1]}}</h3>
+      <table>
+         <thead>
+            <tr>
+               <td>Node ID</td>
+               <td>Account Address</td>
+               <td>URL Address</td>
+               <td>Reputation</td>
+            </tr>
+         </thead>
+         <tbody>
+         {% for post in posts[0] %}
+            <tr>
+               <td>{{ post['node_id'] }}</td>
+               <td>{{ post['account'] }}</td>
+               <td>{{ post['url'] }}</td>
+               <td>{{ post['reputation'] }}</td>
+            </tr>
+         {% endfor %}
+         </tbody>
+      </table>
+   </div>
+{% endblock %}

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <!-- Required meta tags -->
+   <meta charset="UTF-8">
+
+   <!-- import CSS -->
+   <link rel="stylesheet" href="{{ url_for('static', filename= 'css/style.css') }}" type="text/css">
+   
+   <!-- title block defined by extended html -->
+   <title>{% block title %} {% endblock %}</title>
+</head>
+<body>
+   <!-- nagivation bar -->
+   <ul class="nav">
+         <li><a href="{{ url_for('info')}}">Dashboard</a></li>
+         <li><a href="{{ url_for('validator')}}">Validator</a></li>
+         <li><a href="{{ url_for('transaction')}}">Transaction</a></li>
+         <li><a href="{{ url_for('block')}}">Block</a></li>
+         <li><a href="#">About</a></li>
+   </ul>
+   <div class="container">
+      <!-- container block defined by extended html -->
+      {% block content %} {% endblock %}
+   </div>
+</body>
+</html>

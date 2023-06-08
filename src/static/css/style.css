@@ -1,0 +1,78 @@
+h1 {
+    border: 2px #eee solid;
+    color: brown;
+    text-align: left;
+    padding: 10px;
+}
+
+/* nagivation bar style */
+ul.nav {
+    margin:0;
+    padding:0;
+    list-style:none;
+    height:36px; line-height:36px;
+    background:#0d7963; /* you can change the backgorund color here. */
+    font-family:Arial, Helvetica, sans-serif;
+    font-size:13px;
+}
+ul.nav li {
+    border-right:1px solid #189b80; /* you can change the border color matching to your background color */
+    float:left;
+}
+ul.nav a {
+    display:block;
+    padding:0 28px;
+    color:#ccece6;
+    text-decoration:none;
+}
+ul.nav a:hover,
+ul.nav li.current a {
+    background:#086754;
+}
+
+/* table style */
+table {
+    border-collapse: collapse;
+    font-family: Tahoma, Geneva, sans-serif;
+}
+table td {
+    padding: 15px;
+}
+table thead td{
+    background-color: #54585d;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 13px;
+    border: 1px solid #54585d;
+}
+table tbody th{
+    background-color: #54585d;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 13px;
+    border: 1px solid #54585d;
+/*    text-align: right;*/
+}
+table tbody td {
+    color: #636363;
+    font-size: 12px;
+    border: 1px solid #dddfe1;
+    word-break: break-all;
+}
+table tbody tr {
+    background-color: #f9fafb;
+}
+table tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+/* form style */
+label {
+    display: block;
+    font: 1rem 'Fira Sans', sans-serif;
+}
+
+input,
+label {
+    margin: .4rem 0;
+}

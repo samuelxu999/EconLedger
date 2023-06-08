@@ -1,0 +1,70 @@
+<!-- extended from base template -->
+{% extends 'base.html' %}
+
+{% block content %}
+   <h1>{% block title %} Validator Information {% endblock %}</h1>
+   <form method="post">
+      <div>
+         <label for="validator-search">Search the node url:</label>
+         <input type="text" id="validator-search" name="node_url" value ="{{ request.form['node_url'] }}">
+         <button type='submit'>Search</button>
+      </div>
+   </form>
+   <div>
+      {% if  posts[0]=='NULL' %}
+         <h3>Node url cannot be empty</h3>
+      {% elif posts[0]=='Fail' %}
+         <h3>Node url {{ posts[0] }} is not available, message: {{ posts[1] }}</h3>
+      {% else %}
+         <h3>Basic Information</h3>
+         <table>
+            <tbody>
+               <tr>
+                  <th>Node ID</th><td>{{ posts[1]['node_id'] }}</td>
+               </tr>
+               <tr>
+                  <th>URL Address</th><td>{{ posts[0] }}</td>
+               </tr>
+               <tr>
+                  <th>Committee Size</th><td>{{ posts[1]['committee_size'] }}</td>
+               </tr>
+            </tbody>
+         </table>
+
+         <h3>Current Ledger Status</h3>
+         <table>
+            <tbody>
+               <tr>
+                  <th>Finalized Block Checkpoint</th><td>{{ posts[1]['highest_finalized_checkpoint'] }}</td>
+               </tr>
+               <tr>
+                  <th>Committed Block Checkpoint</th><td>{{ posts[1]['highest_justified_checkpoint'] }}</td>
+               </tr>
+               <tr>
+                  <th>Processed Block Checkpoint</th><td>{{ posts[1]['processed_head'] }}</td>
+               </tr>
+            </tbody>
+         </table>
+
+         <h3>Finality Link (ordered by finality sequence)</h3>
+         <table>
+            <thead>
+               <tr>
+                  <td>Source Checkpoint</td>
+                  <td>Target Checkpoint</td>
+                  <td>Vote Count</td>
+               </tr>
+            </thead>
+            <tbody>
+            {% for vote in posts[2] %}
+               <tr>
+                  <td>{{ vote[0] }}</td>
+                  <td>{{ vote[1] }}</td>
+                  <td>{{ vote[2] }}</td>
+               </tr>
+            {% endfor %}
+            </tbody>
+         </table>
+      {% endif %}
+   </div>
+{% endblock %}

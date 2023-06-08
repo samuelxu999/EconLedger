@@ -1,0 +1,84 @@
+<!-- extended from base template -->
+{% extends 'base.html' %}
+
+{% block content %}
+   <h1>{% block title %} Block Information {% endblock %}</h1>
+   <form method="post">
+      <div>
+         <label for="block-search">Search the block hash:</label>
+         <input type="text" id="block-search" name="block_hash" value ="{{ request.form['block_hash'] }}">
+         <button type='submit'>Search</button>
+      </div>
+   </form>
+
+   <div>
+      {% if  posts[0]!='NULL' %}
+         <h3>Basic Information</h3>
+         <table>
+            <tbody>
+               <tr>
+                  <th>Block Hash</th><td>{{ posts[0] }}</td>
+               </tr>
+               <tr>
+                  <th>URL Address</th><td>{{ posts[1] }}</td>
+               </tr>
+            </tbody>
+         </table>
+
+         {% if  posts[2]!={} %}
+            <h3>Block Header</h3>
+            <table width=600>
+               <tr>
+                  <th>Miner Account</th><td>{{ posts[2]['sender_address'] }}</td>
+               </tr>
+               <tr>
+                  <th>Proof (nonce)</th><td>{{ posts[2]['nonce'] }}</td>
+               </tr>
+               <tr>
+                  <th>Height</th><td>{{ posts[2]['height'] }}</td>
+               </tr>
+               <tr>
+                  <th>Previous Block Hash</th><td>{{ posts[2]['previous_hash'] }}</td>
+               </tr>
+               <tr>
+                  <th>Merkle Tree Root Hash</th><td>{{ posts[2]['merkle_root'] }}</td>
+               </tr>
+               <tr>
+                  <th>Signature</th><td>{{ posts[2]['signature'] }}</td>
+               </tr>
+            </table>
+         {% endif %}
+
+         <h3>ENF proofs</h3>
+         <table width=600>
+            <tr>
+               <th>Hash</th>
+               <th>Value</th>
+            </tr>
+            {% for enf_pf in posts[2]['enf_proofs'] %}          
+               <tr>
+                  <td>{{ enf_pf['hash'] }}</td>
+                  <td>{{ enf_pf['value']}}</td>
+               </tr>
+            {% endfor %}
+
+         </table>
+
+         <h3>Block Data (ordered transctions list (hash))</h3>
+         <table>
+            <tr>
+               <th>Hash</th>
+            </tr>
+            {% for tx in posts[2]['transactions'] %}          
+               <tr>
+                  <td>{{ tx }}</td>
+               </tr>
+            {% endfor %}
+
+         </table>
+
+      {% endif %}
+   </div>
+{% endblock %}
+
+
